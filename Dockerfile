@@ -9,6 +9,8 @@ RUN python3 -m pip cache purge
 ## set up the application
 WORKDIR "/opt"
 
+# TODO figure out how to attach the serial port...
+
 ENTRYPOINT ["/usr/local/bin/python3"]
 CMD ["juliet.py"]
 

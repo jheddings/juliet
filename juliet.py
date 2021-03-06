@@ -8,6 +8,7 @@ import threading
 import time
 import logging
 import serial
+import blessed
 
 ################################################################################
 # modified from https://stackoverflow.com/a/2022629/197772
@@ -38,14 +39,14 @@ class Event(list):
 
 ################################################################################
 # Events => Handler Function
-#   on_xmit => func(console, msg)
-#   on_recv => func(console, msg)
-class Console(object):
+#   on_xmit => func(radio, msg)
+#   on_recv => func(radio, msg)
+class Radio(object):
 
     #---------------------------------------------------------------------------
     def __init__(self, serial_port, baud_rate=9600):
-        self.logger = logging.getLogger('juliet.Console')
-        self.logger.info('Starting console on %s', serial_port)
+        self.logger = logging.getLogger('juliet.Radio')
+        self.logger.info('Opening radio on %s', serial_port)
 
         self.comm = serial.Serial(serial_port, baud_rate, timeout=1)
         self.comm_lock = threading.Lock()
@@ -95,9 +96,12 @@ class Console(object):
             self.comm_lock.release()
 
             if msg_data and len(msg_data) > 0:
+                self.on_recv(self, msg_data)
+
+                # TODO filter only juliet messages
+
                 msg = str(msg_data, 'utf-8')
                 self.logger.debug('received message -- %s', msg[:10])
-                self.on_recv(self, msg)
 
             time.sleep(0)  ## yield to xmit thread
 
@@ -108,16 +112,70 @@ class Console(object):
                 msg = self.xmit_queue.get(timeout=1)
                 msg_data = bytes(msg, 'utf-8')
 
+                # TODO format as juliet messages
+
                 with self.comm_lock:
                     self.comm.write(msg_data)
 
                 self.logger.debug('transmitted message -- %s', msg[:10])
-                self.on_xmit(self, msg)
+                self.on_xmit(self, msg_data)
 
             except queue.Empty:
                 pass
 
             time.sleep(0)  ## yield to recv thread
+
+################################################################################
+class Console(object):
+
+    #---------------------------------------------------------------------------
+    def __init__(self, radio, terminal=None):
+        self.radio = radio
+        self.terminal = blessed.Terminal() if terminal is None else terminal
+
+        self.radio.on_recv += self.recv_msg
+        self.radio.on_xmit += self.xmit_msg
+
+        self.active = False
+
+        self.logger = logging.getLogger('juliet.Console')
+
+    #---------------------------------------------------------------------------
+    def run(self):
+        self.active = True
+
+        try:
+            self._run_loop()
+        except EOFError:
+            self.logger.info('End of input')
+
+    #---------------------------------------------------------------------------
+    def _run_loop(self):
+        self.logger.debug('entering run loop')
+
+        while self.active:
+            msg = None
+
+            try:
+
+                msg = input(': ')
+
+            # ignore ^C - cancel current msg
+            except KeyboardInterrupt:
+                print()
+                continue
+
+            self.radio.send(msg)
+
+        self.logger.debug('exiting run loop')
+
+    #---------------------------------------------------------------------------
+    def xmit_msg(self, radio, msg):
+        print(f'\n> {msg}\n:', end=' ')
+
+    #---------------------------------------------------------------------------
+    def recv_msg(self, radio, msg):
+        print(f'\n< {msg}\n:', end=' ')
 
 ################################################################################
 def parse_args():
@@ -172,30 +230,21 @@ def load_config(args):
     return conf
 
 ################################################################################
-def main(console):
-    while True:
-        msg = input('> ')
-        console.send(msg)
-
-################################################################################
 ## MAIN ENTRY
-
-# TODO consider using curses for an entry cell and history cell
-# TODO support arrow keys for xmit history
 
 if __name__ == '__main__':
     args = parse_args()
     conf = load_config(args)
 
-    console = Console(
+    radio = Radio(
         serial_port=conf['port'],
         baud_rate=conf['baud']
     )
 
-    try:
-        main(console)
-    except EOFError:
-        pass
+    term = blessed.Terminal()
+    jules = Console(radio, term)
 
-    console.close()
+    jules.run()
+
+    radio.close()
 
