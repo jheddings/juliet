@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# porky - the simple 2-way serial text client
+# juliet - the simple 2-way serial text client
 
 import os
 import queue
@@ -15,7 +15,7 @@ class Event(list):
 
     #---------------------------------------------------------------------------
     def __init__(self):
-        self.logger = logging.getLogger('porky.Event')
+        self.logger = logging.getLogger('juliet.Event')
 
     #---------------------------------------------------------------------------
     def __iadd__(self, handler):
@@ -44,7 +44,7 @@ class Console(object):
 
     #---------------------------------------------------------------------------
     def __init__(self, serial_port, baud_rate=9600):
-        self.logger = logging.getLogger('porky.Console')
+        self.logger = logging.getLogger('juliet.Console')
         self.logger.info('Starting console on %s', serial_port)
 
         self.comm = serial.Serial(serial_port, baud_rate, timeout=1)
@@ -123,12 +123,12 @@ class Console(object):
 def parse_args():
     import argparse
 
-    argp = argparse.ArgumentParser(description='porky: a simple 2-way serial text client')
+    argp = argparse.ArgumentParser(description='juliet: a simple 2-way serial text client')
 
-    argp.add_argument('--config', default='porky.cfg',
-                      help='configuration file (default: porky.cfg)')
+    argp.add_argument('--config', default='juliet.cfg',
+                      help='configuration file (default: juliet.cfg)')
 
-    # porky.cfg overrides these values
+    # juliet.cfg overrides these values
     argp.add_argument('--port', help='serial port for comms')
     argp.add_argument('--baud', help='baud rate for comms')
 
