@@ -2,6 +2,8 @@
 
 A simple 2-way serial text client for D-STAR / DMR messaging.
 
+Written by W0JHX.  Tested using Icom 92AD with the standard programming cable.
+
 ## Usage
 
 ```
@@ -17,3 +19,5 @@ Messages will be displayed automatically when they are recieved.
 ## Configuration
 
 TODO - more information here...
+
+\-73s
