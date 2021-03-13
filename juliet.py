@@ -325,17 +325,54 @@ class MessageBroker(object):
         msg = Message.unpack(data)
 
         if msg is not None:
-            self.subscribe(this, msg)
-            self.logger.debug('received message -- %s', msg[:10])
+            self.subscribe(self, msg)
+            self.logger.debug('received message -- %s', msg)
 
 ################################################################################
 # Events => Handler Function
 #   on_xmit => func(radio, data)
 #   on_recv => func(radio, data)
-class RadioComm(object):
+class CommBase(object):
+
+    #---------------------------------------------------------------------------
+    def __init__(self):
+        self.on_xmit = Event()
+        self.on_recv = Event()
+
+        self.logger = logging.getLogger('juliet.CommBase')
+
+    #---------------------------------------------------------------------------
+    def send(self, data): raise NotImplemented()
+
+    #---------------------------------------------------------------------------
+    def close(self): raise NotImplemented()
+
+################################################################################
+class CommLoop(CommBase):
+
+    #---------------------------------------------------------------------------
+    def __init__(self):
+        CommBase.__init__(self)
+
+        self.logger = logging.getLogger('juliet.CommLoop')
+
+    #---------------------------------------------------------------------------
+    def send(self, data):
+        self.on_xmit(self, data)
+        self.logger.debug('send -- %s', data)
+        self.on_recv(self, data)
+
+    #---------------------------------------------------------------------------
+    def close(self):
+        pass
+
+################################################################################
+class RadioComm(CommBase):
 
     #---------------------------------------------------------------------------
     def __init__(self, serial_port, baud_rate=9600):
+        CommBase.__init__(self)
+
         self.logger = logging.getLogger('juliet.RadioComm')
         self.logger.debug('opening radio on %s', serial_port)
 
@@ -346,12 +383,10 @@ class RadioComm(object):
 
         # initialize transmitter event / thread / queue
         self.xmit_queue = queue.Queue()
-        self.on_xmit = Event()
         self.xmit_thread = threading.Thread(target=self._xmit_worker, daemon=True)
         self.xmit_thread.start()
 
         # initialize receiver event / thread
-        self.on_recv = Event()
         self.recv_thread = threading.Thread(target=self._recv_worker, daemon=True)
         self.recv_thread.start()
 
@@ -469,7 +504,7 @@ class Console(object):
                 print()
                 continue
 
-            msg = Message(content=text)
+            msg = TextMessage(content=text)
             self.broker.publish(msg)
 
             #data = bytes(text, 'utf-8')
