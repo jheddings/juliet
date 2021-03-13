@@ -2,6 +2,7 @@
 
 BASEDIR ?= $(PWD)
 APPNAME ?= juliet
+APPDIR ?= $(BASEDIR)/app/$(APPNAME)
 SRCDIR ?= $(BASEDIR)/src
 
 ################################################################################
@@ -34,9 +35,15 @@ shell:
 .PHONY: venv
 
 venv:
-	python3 -m venv $(BASEDIR)
+	python3 -m venv "$(BASEDIR)"
 	bin/pip3 install -r requirements.txt
-	echo "$(SRCDIR)" > lib/*/site-packages/$(APPNAME).pth
+	echo "$(SRCDIR)" > "lib/*/site-packages/$(APPNAME).pth"
+
+################################################################################
+.PHONY: test
+
+test:
+	python3 -m unittest discover -v -s ./test
 
 ################################################################################
 .PHONY: clean
