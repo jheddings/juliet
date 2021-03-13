@@ -13,10 +13,30 @@ import time
 import logging
 import serial
 import blessed
+import mimetypes
 
 from datetime import datetime, timezone
 
-packed_msg_re = re.compile(r'^>>(?P<ver>[a-fA-F0-9]+):(?P<crc>[a-zA-Z0-9]+):(?P<sender>[a-zA-Z0-9~/=+_-]+)?:(?P<time>[0-9]{14})?:(?P<msg>.+)(?!\\):(?P<sig>[a-zA-Z0-9]+)?<<$')
+packed_msg_re = re.compile(r'^>>(?P<ver>[a-fA-F0-9]+):(?P<crc>[a-zA-Z0-9]+):(?P<sender>[a-zA-Z0-9~/=+_$@#*&%!|-]+)?:(?P<time>[0-9]{14})?:(?P<msg>.+)(?!\\):(?P<sig>[a-zA-Z0-9]+)?<<$')
+
+################################################################################
+safe_filename_chars = '.-_ '
+
+def make_safe_filename(unsafe):
+    if unsafe is None or len(unsafe) == 0:
+        return None
+
+    safe = ''.join([c for c in unsafe if c.isalnum() or c in safe_filename_chars])
+
+    return safe.strip()
+
+################################################################################
+def format_timestamp(tstamp):
+    return tstamp.strftime('%Y%m%d%H%M%S')
+
+################################################################################
+def parse_timestamp(string):
+    return datetime.strptime(string, '%Y%m%d%H%M%S')
 
 ################################################################################
 # modified from https://gist.github.com/oysstu/68072c44c02879a2abf94ef350d1c7c6
@@ -39,6 +59,18 @@ def crc16(data, crc=0xFFFF, poly=0x1021):
     crc = (crc << 8) | ((crc >> 8) & 0xFF)
 
     return crc & 0xFFFF
+
+################################################################################
+def checksum(*parts):
+    crc = 0xFFFF
+
+    for part in parts:
+        if part is None:
+            continue
+
+        crc = crc16(part, crc)
+
+    return crc
 
 ################################################################################
 # modified from https://stackoverflow.com/a/2022629/197772
@@ -82,9 +114,6 @@ class Message(object):
         # juliet messages are only accurate to the second...
         self.timestamp = self.timestamp.replace(microsecond=0)
 
-        self.logger = logging.getLogger('juliet.Message')
-        self.logger.debug('new message: 0x%04X', self.checksum())
-
     #---------------------------------------------------------------------------
     # sign this message with the given private key
     def sign(self, privkey):
@@ -101,32 +130,15 @@ class Message(object):
         return None
 
     #---------------------------------------------------------------------------
-    def checksum(self):
-        crc = crc16(self.content)
-
-        # use a string representation with the correct precision
-        tstamp = self.timestamp.strftime('%Y%m%d%H%M%S')
-        crc = crc16(tstamp, crc)
-
-        if self.sender is not None:
-            crc = crc16(self.sender, crc)
-
-        if self.signature is not None:
-            crc = crc16(self.signature, crc)
-
-        return crc
-
-    #---------------------------------------------------------------------------
     def pack(self):
         sender = '' if self.sender is None else self.sender
+        tstamp = format_timestamp(self.timestamp)
         sig = '' if self.signature is None else self.signature
-        tstamp = self.timestamp.strftime('%Y%m%d%H%M%S')
-        crc = format(self.checksum(), '04X')
-
-        version = format(self.version, 'X')
         content = self.pack_content()
 
-        text = f'>>{version}:{crc}:{sender}:{tstamp}:{content}:{sig}<<'
+        crc = checksum(sender, tstamp, content, sig)
+
+        text = f'>>{self.version:X}:{crc:04X}:{sender}:{tstamp}:{content}:{sig}<<'
         data = bytes(text, 'utf-8')
 
         return data
@@ -157,6 +169,8 @@ class Message(object):
             msg = TextMessage(content=content)
         elif version == 1:
             msg = CompressedTextMessage(content=content)
+        elif version == 3:
+            msg = FileMessage(content=content)
         else:
             raise Exception('unsupported version')
 
@@ -164,30 +178,38 @@ class Message(object):
         # TODO confirm checksum - should we allow "invalid" messages?
 
         # timestamps are in UTC
-        tstamp = datetime.strptime(match.group('time'), '%Y%m%d%H%M%S')
+        tstamp = parse_timestamp(match.group('time'))
         tstamp = tstamp.replace(tzinfo=timezone.utc)
 
         msg.sender = match.group('sender')
         msg.signature = match.group('sig')
-        msg.content = msg.unpack_content()
+
+        msg.unpack_content()
 
         return msg
 
     #---------------------------------------------------------------------------
-    def __hash__(self):
-        return self.checksum()
-
-    #---------------------------------------------------------------------------
     def __eq__(self, other):
         if type(other) is type(self):
-            return (
-                self.content == other.content
-                and self.sender == other.sender
-                and self.timestamp == other.timestamp
-                and self.signature == other.signature
-            )
-
+            return self.__dict__ == other.__dict__
         return NotImplemented
+
+################################################################################
+class CompressedMessage(Message):
+
+    #---------------------------------------------------------------------------
+    def compress(self, content):
+        data = content.encode('utf-8')
+        compressed = zlib.compress(data)
+        b64 = base64.b64encode(compressed)
+        return str(b64, 'ascii')
+
+    #---------------------------------------------------------------------------
+    def decompress(self, content):
+        b64 = bytes(content, 'ascii')
+        compressed = base64.b64decode(b64)
+        data = zlib.decompress(compressed)
+        return data.decode('utf-8')
 
 ################################################################################
 class TextMessage(Message):
@@ -200,37 +222,83 @@ class TextMessage(Message):
 
     #---------------------------------------------------------------------------
     def unpack_content(self):
-        return self.content.replace('\\:', ':')
+        self.content = self.content.replace('\\:', ':')
 
 ################################################################################
-# content is compressed and base-64 encoded
-class CompressedTextMessage(Message):
+class CompressedTextMessage(CompressedMessage):
 
     version = 1
 
     #---------------------------------------------------------------------------
     def pack_content(self):
-        data = self.content.encode('utf-8')
-        compressed = zlib.compress(data)
-        b64 = base64.b64encode(compressed)
-        return str(b64, 'ascii')
+        return self.compress(self.content)
 
     #---------------------------------------------------------------------------
     def unpack_content(self):
-        b64 = bytes(self.content, 'ascii')
-        compressed = base64.b64decode(b64)
-        data = zlib.decompress(compressed)
-        return data.decode('utf-8')
+        self.content = self.decompress(self.content)
 
 ################################################################################
-# content contains identifier to previous message (sender+timestamp)
 class ThreadedMessage(Message):
+
     version = 2
+    origin = None
+
+    #---------------------------------------------------------------------------
+    def __init__(self, content, origin, sender=None, signature=None, timestamp=None):
+        Message.__init__(self, content, sender, signature, timestamp)
+
+        # origin must be properly filled out
+        if origin is None or origin.sender is None or origin.timestamp is None:
+            raise ValueError('invalid origin for ThreadedMessage')
+
+        self.origin = origin.sender + '+' + format_timestamp(origin.timestamp)
+
+    #---------------------------------------------------------------------------
+    def pack_content(self):
+        return self.origin + '|' + self.content
+
+    #---------------------------------------------------------------------------
+    def unpack_content(self):
+        if self.content is None:
+            return None
+
+        (origin, content) = self.content.split('|', 1)
+
+        self.origin = origin
+        self.content = content
 
 ################################################################################
-# content contains a name and base-64 content from a file
-class FileMessage(Message):
+class FileMessage(CompressedMessage):
+
     version = 3
+    filename = None
+    mimetype = None
+
+    #---------------------------------------------------------------------------
+    def __init__(self, content, filename=None, mimetype=None, sender=None, signature=None, timestamp=None):
+        CompressedMessage.__init__(self, content, sender, signature, timestamp)
+
+        self.filename = make_safe_filename(filename)
+
+        if mimetype is None and filename is not None:
+            guess = mimetypes.guess_type(filename)
+            self.mimetype = guess[0] or 'application/octet-stream'
+        else:
+            self.mimetype = mimetype
+
+    #---------------------------------------------------------------------------
+    def pack_content(self):
+        filename = make_safe_filename(self.filename) or ''
+        mimetype = self.mimetype or ''
+        compressed = self.compress(self.content)
+        return filename + '|' + mimetype + '|' + compressed
+
+    #---------------------------------------------------------------------------
+    def unpack_content(self):
+        (filename, mimetype, compressed) = self.content.split('|', 2)
+        self.filename = make_safe_filename(filename)
+        self.mimetype = mimetype if len(mimetype) > 0 else None
+        self.content = self.decompress(compressed)
 
 ################################################################################
 # Events => Handler Function

@@ -1,6 +1,7 @@
 import logging
 import unittest
 import string
+import os
 
 import juliet
 
@@ -20,11 +21,23 @@ class MessageTest(unittest.TestCase):
         text = ''.join([chr(ch) for ch in range(128, 256)])
         self.check_standard_text_msg(text)
 
-        # TODO check other non-ascii (utf-8) characters
+    #---------------------------------------------------------------------------
+    def test_UTF8(self):
+        text = 'нєℓℓσ ωσяℓ∂'
+        self.check_standard_text_msg(text)
+
+        text = '你好世界'
+        self.check_standard_text_msg(text)
+
+        text = 'नमस्ते दुनिया'
+        self.check_standard_text_msg(text)
+
+        text = 'مرحبا بالعالم'
+        self.check_standard_text_msg(text)
 
     #---------------------------------------------------------------------------
-    def test_MessageStructureCharacters(self):
-        text = 'Lorem ipsum:dolor sit: amet'
+    def test_SpecialProtocolCharacters(self):
+        text = 'Lorem ipsum:dolorsit:amet'
         self.check_standard_text_msg(text)
 
         text = ':Lorem ipsum dolor sit amet'
@@ -39,11 +52,11 @@ class MessageTest(unittest.TestCase):
         text = '<<Lorem ipsum dolor sit amet>>'
         self.check_standard_text_msg(text)
 
-        text = 'Lorem ipsum :dolor :sit <<amet'
+        text = ',Lorem|ipsum:dolor+sit<<amet'
         self.check_standard_text_msg(text)
 
     #---------------------------------------------------------------------------
-    def test_CompressedText(self):
+    def test_CompressedTextMessage(self):
         text = string.printable * 4
 
         orig = juliet.CompressedTextMessage(text)
@@ -51,6 +64,20 @@ class MessageTest(unittest.TestCase):
         copy = juliet.CompressedTextMessage.unpack(packed)
 
         self.assertEqual(orig, copy)
+
+    #---------------------------------------------------------------------------
+    def test_FileMessage(self):
+        with open(__file__) as fp:
+            content = fp.read()
+
+        orig = juliet.FileMessage(content=content)
+        packed = orig.pack()
+        copy = juliet.FileMessage.unpack(packed)
+
+        self.assertEqual(orig, copy)
+
+        self.assertEqual(orig.content, content)
+        self.assertEqual(content, copy.content)
 
     #---------------------------------------------------------------------------
     def check_standard_text_msg(self, text):
