@@ -1,4 +1,7 @@
 bin
 lib
 include
+build
+dist
 pyvenv.cfg
+src/juliet.egg-info
