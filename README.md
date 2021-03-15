@@ -1,30 +1,16 @@
 # juliet #
 
-A simple 2-way serial text client for D-STAR / DMR messaging.  The application itself is
-unaware of the underlying transport mechanism, instead juliet relies on data exchanged
-over a standard serial port.  Any radio capable of exchanging data over a standard serial
-cable _should_ work.
+A lightweight mesh IRC server for radio networks.  Although the primary use case is for
+ham radio, `juliet` should perform well either as a simple standalone IRC server or as
+part of a customized mesh environment.
 
 Written by W0JHX.  Tested using Icom 92AD with the standard programming cable.
 
 ## Usage ##
 
-```
-juliet.py
-```
-
-- Simply connect to your radio's serial interface (or programming cable).
-- Run the `juliet.py` script, optionally specifying a configuration file.
-- Connect to the computer in a standard browser.
-
-Messages will be displayed automatically when they are recieved.
-
-Outgoing messages will be rate limited to 120 chars per second.  Larger messages will be
-split and assembled when received.  This is primarily to help avoid frequency congenstion.
-
 ## Configuration ##
 
-TODO - more information here...
+See the sample `juliet.cfg` for documentation.
 
 ### Logging ###
 
@@ -32,48 +18,27 @@ Enable logging to help with troubleshooting.
 
 ## Technical Info ##
 
-It is hard to find information online about some of this stuff, so here is some detail
-that I've uncovered along the way.  Note that this is not intended to be a complete
-reference for using D-STAR, just some useful information while writing this application.
+## Mesh Nodes ##
 
-### Connecting to the radio ###
+Configure using the full module name of the node, e.g. `juilet.node.NullMeshNode`.
 
-D-STAR radios typically have a serial port for programming.  This port will also accept and
-relay data from the radio.  In most cases, simply opening the serial port is enough to
-access low-bandwidth data from the radio.
+### NullMeshNode ###
 
-Some radios must be placed in "Auto TX" mode (rather than PTT) in order to send any serial
-data automatically.
+This node will never send or recieve data.  It is mostly used for testing or as a base
+class for more interesting node types.
 
-Also, be sure to disable automatic GPS reporting when using a radio with Juliet.  This will
-mangle the data stream such that it cannot be parsed.
+### LoopbackMeshNode ###
 
-### D-STAR data format ###
+This node will receive all data it sends.  It is mostly used for testing.
 
-The D-STAR spec does not define any structure for the data stream, leaving it up to each
-application.  Most radios use a similar format for transmitting GPS data.  You may see these
-messages in the log file, but they are ignored by Juliet.
+### SerialMeshNode ###
 
-### Juliet message format ###
+This node will send and recieve messages over a serial port.
 
-**WORK IN PROGRESS**
+### Custom Mesh Nodes ##
 
-```
->>{version}:{crc16}:{sender}:{timestamp}:{content}:{signature}<<
-```
+Developers are able to build custom mesh nodes using the `juliet.MeshNode` base class.
 
-* `version` (required) - specify the version of the message structure - see below
-* `crc16` (required) - the checksum for the message (sender, content, sequence, signature)
-* `sender` (required) - the sender of the message, specified in config (not the radio MY call)
-* `timestamp` (required) - the timestamp when the message was sent
-* `content` (required) - main content of the message; length of the message is not restricted
-* `signature` (optional) - digital signature used to authenticate the sender
-
-#### Message Types ####
-
-The `version` field denotes both message structure as well as content type.
-
-* 0 - uncompressed text
-* 1 - compressed & base-64 encoded text
+See the existing node types for examples.
 
 _-73_

@@ -12,7 +12,7 @@ all: build test
 ################################################################################
 .PHONY: build
 
-build: configured test
+build: venv-configured test
 	python3 -m build
 
 ################################################################################
@@ -26,35 +26,46 @@ rebuild: clean build
 venv:
 	python3 -m venv "$(BASEDIR)"
 	bin/pip3 install -r requirements.txt
+	#TODO find a way to make this work...
+	echo "$(SRCDIR)" > lib/*/site-packages/$(APPNAME).pth
 
 ################################################################################
-.PHONY: configured
+.PHONY: venv-configured
 
-configured:
+venv-configured:
 ifneq ($(VIRTUAL_ENV), $(BASEDIR))
 	$(error Must use venv !!)
 endif
 
 ################################################################################
+.PHONY: run
+
+run: test
+	python3 -m juliet
+
+################################################################################
 .PHONY: test
 
-test: configured
+test: venv-configured
 	python3 -m unittest discover -v -s ./test
 
 ################################################################################
 .PHONY: deploy
 
-deploy: test
-	python3 -m twine upload --repository testpypi dist/*
+deploy: build test
+	python3 -m twine upload dist/*
 
 ################################################################################
 .PHONY: clean
 
 clean:
+	rm -Rf "$(BASEDIR)/build"
 	rm -f "$(SRCDIR)/*.pyc"
 	rm -Rf "$(SRCDIR)/__pycache__"
+	rm -Rf "$(SRCDIR)/$(APPNAME)/__pycache__"
+	rm -Rf "$(BASEDIR)/test/__pycache__"
+	rm -Rf "$(SRCDIR)/juliet.egg-info"
 	rm -f "$(BASEDIR)/juliet.log"
-	rm -Rf "$(BASEDIR)/build"
 
 ################################################################################
 .PHONY: clobber
