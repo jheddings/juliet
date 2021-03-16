@@ -87,11 +87,9 @@ class Channel(object):
 
     #---------------------------------------------------------------------------
     def add_member(self, session):
-        if session in self.members:
-            raise AttributeError('session already in channel')
-
-        with self.members_lock:
-            self.members.append(session)
+        if session not in self.members:
+            with self.members_lock:
+                self.members.append(session)
 
         self.logger.info('User [%s] joined channel %s', session.nickname, self.name)
 
@@ -172,12 +170,15 @@ class Session(object):
     def close(self):
         self.logger.debug('closing session')
 
-        if self.socket is not None:
-            try:
-                self.socket.close()
-            except socket.error:
-                self.logger.debug('socket closed -- nothing to do')
-            self.socket = None
+        for channel in self.channels.values():
+            channel.remove_member(self)
+
+        try:
+            self.socket.close()
+        except socket.error:
+            self.logger.debug('socket closed -- nothing to do')
+
+        self.socket = None
 
     #---------------------------------------------------------------------------
     def handle_user(self, msg):
@@ -212,11 +213,11 @@ class Session(object):
         nick = msg.params[0]
 
         if self.server.get_session(nick):
-            self.notify('433 * %s :Nickname in use', nick)
+            self.notify('433 * {} :Nickname in use', nick)
             return
 
         if not regex_nickname.match(nick):
-            self.notify('432 * %s :Invalid nickname', nick)
+            self.notify('432 * {} :Invalid nickname', nick)
             return
 
         self.nickname = nick
@@ -351,8 +352,34 @@ class Session(object):
                 self.privmsg(recip, msg.remarks)
 
     #---------------------------------------------------------------------------
+    def handle_who(self, msg):
+        if msg.params is None:
+            pass
+        else:
+            subject = msg.params[0]
+            channel = self.server.get_channel(subject)
+
+            # XXX this is a bit of a hack, since we are directly accessing properties
+            # of the server and channel objects...  might be okay, but keep an eye on it
+            sessions = self.server.sessions if channel is None else channel.members
+
+            for session in sessions:
+                self.notify(
+                    '352 {} {} {} {} {} {} H :0 {}',
+                    self.nickname,
+                    channel.name,
+                    session.username,
+                    session.host,
+                    self.server.name,
+                    session.nickname,
+                    session.full_name
+                )
+
+            self.notify('315 {} {} :End of /WHO list', self.nickname, subject)
+
+    #---------------------------------------------------------------------------
     def handle_quit(self, msg):
-        self.logger.info('User quit -- %s%s', self.nickname, msg.remarks or '')
+        self.logger.info('User quit -- %s:%s', self.nickname, msg.remarks)
 
         self.close()
 
@@ -393,6 +420,8 @@ class Session(object):
             self.handle_quit(msg)
         elif msg.command == 'USER':
             self.handle_user(msg)
+        elif msg.command == 'WHO':
+            self.handle_who(msg)
         else:
             self.notify('421 {} {} :Unknown command', self.nickname or '*', msg.command)
 
@@ -407,25 +436,28 @@ class Session(object):
             channel = self.server.create_channel(name)
 
         if channel.key != key:
-            self.notify('475 {} {} :Wrong key for channel (+k)', self.nickname, name)
+            self.notify(
+                '475 {} {} :Wrong key for channel (+k)',
+                self.nickname, channel.name
+            )
             return
 
         channel.add_member(self)
-        channel.notify(self, 'JOIN ' + name, include_sender=True)
+        channel.notify(self, 'JOIN ' + channel.name, include_sender=True)
         # TODO send current users
 
         if channel.topic:
-            self.notify('332 {} {} :{}', self.nickname, name, channel.topic)
+            self.notify('332 {} {} :{}', self.nickname, channel.name, channel.topic)
         else:
-            self.notify('331 {} {} :No topic', self.nickname, name)
+            self.notify('331 {} {} :No topic', self.nickname, channel.name)
 
         self.logger.info(
             '%s joined channel %s -- [key:%s]',
-            self.nickname, name, (key is not None)
+            self.nickname, channel.name, (key is not None)
         )
 
-        self.channels[name] = channel
-        self.on_join(self, name)
+        self.channels[channel.name] = channel
+        self.on_join(self, channel.name)
 
     #---------------------------------------------------------------------------
     def part_channel(self, name, remarks=None):
@@ -435,12 +467,13 @@ class Session(object):
 
         if channel is None:
             self.notify('403 {} {} :No such channel', self.nickname, name)
-        if name not in self.channels:
+        elif name not in self.channels:
             self.notify('442 {} :Not on channel -- {}', self.nickname, name)
         else:
             channel.notify(self, f'PART {name}', include_sender=True)
             channel.remove_member(self)
-            self.on_part(self, name)
+            self.channels.pop(channel.name, None)
+            self.on_part(self, channel.name)
 
     #---------------------------------------------------------------------------
     def parse_buffer(self):
@@ -470,7 +503,7 @@ class Session(object):
         resp = f'{msg}\r\n'
 
         with self.send_lock:
-            self.logger.debug('>> %s', msg)
+            self.logger.debug('[%s] >> %s', id(self), msg)
             self.socket.send(bytes(resp, 'utf-8'))
 
     #---------------------------------------------------------------------------
@@ -497,9 +530,17 @@ class Session(object):
         if session is not None:
             session.send(f'{self.prefix} PRIVMSG {recipient} {message}')
             self.on_privmsg(self, recipient, message)
+
         elif channel is not None:
-            channel.notify(self, f'PRIVMSG {recipient} :{message}')
-            self.on_privmsg(self, recipient, message)
+            # use the real name of the channel...
+            recipient = channel.name
+
+            if recipient not in self.channels:
+                self.notify('442 {} :Not on channel -- {}', self.nickname, recipient)
+            else:
+                channel.notify(self, f'PRIVMSG {recipient} :{message}')
+                self.on_privmsg(self, recipient, message)
+
         else:
             self.notify('401 {} {} :No such recipient', self.nickname, recipient)
 
@@ -581,10 +622,9 @@ class Server(object):
         self.socket = None
 
         self.sessions = list()
-        self.session_lock = threading.Lock()
+        self.session_lock = threading.RLock()
 
         self.channels = dict()
-        self.channel_lock = threading.Lock()
 
         self.active = None
         self.start_time = None
@@ -625,10 +665,11 @@ class Server(object):
                 self.logger.info('Client connected -- %s:%d', addr[0], addr[1])
 
                 session = Session(self, conn)
-                session.on_quit += self.session_quit
 
                 with self.session_lock:
                     self.sessions.append(session)
+
+                session.on_quit += self.session_quit
 
         self.active = False
 
@@ -640,12 +681,11 @@ class Server(object):
         self.logger.debug('stopping server')
         self.active = False
 
-        # TODO close sessions gracefully
+        with self.session_lock:
+            for session in self.sessions:
+                session.close()
+                self.sessions.remove(session)
 
-        for session in self.sessions:
-            session.close()
-
-        self.sessions = list()
         self.socket.close()
 
     #---------------------------------------------------------------------------
@@ -660,25 +700,16 @@ class Server(object):
         self.logger.debug('looking for session -- %s', nick)
 
         with self.session_lock:
-            for session in self.sessions:
-                if session.nickname == nick:
-                    return session
+            session = next((s for s in self.sessions if s.nickname == nick), None)
 
-        return None
+        return session
 
     #---------------------------------------------------------------------------
     def get_channel(self, name):
         if name is None:
             raise ValueError('name cannot be None')
 
-        channel = None
-        name = name.lower()
-
-        with self.channel_lock:
-            if name in self.channels:
-                channel = self.channels[name]
-
-        return channel
+        return self.channels.get(name.lower(), None)
 
     #---------------------------------------------------------------------------
     def create_channel(self, name, key=None):
@@ -690,9 +721,8 @@ class Server(object):
         if name in self.channels:
             raise AttributeError('channel exists')
 
-        with self.channel_lock:
-            channel = Channel(name, key=key)
-            self.channels[name] = channel
+        channel = Channel(name, key=key)
+        self.channels[name] = channel
 
         self.logger.info('Channel %s created [key:%s]', name, (key is not None))
 
