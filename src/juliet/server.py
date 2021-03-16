@@ -8,10 +8,112 @@ import juliet
 from datetime import datetime, timezone
 
 SOCKET_BUFFER_SIZE = 1024
-SESSION_TIMEOUT_SEC = 300
+SESSION_TIMEOUT_SEC = 90
 
+# used for message parsing (bytes)...
 regex_eol = re.compile(rb'\r?\n')
-regex_nickname = re.compile(rb'[a-zA-Z0-9|`\\_{}\[\]-]+')
+regex_message = re.compile(rb'^(:(?P<prefix>[\w]+))?\s*(?P<command>\w+)\s*(?P<params>.+)?$')
+
+# used for handling params (str)...
+regex_nickname = re.compile(r'^[a-zA-Z0-9|`\\_{}\[\]-]{1,16}$')
+regex_channel = re.compile(r'^[#&][^ ,]{1,200}')
+
+# TODO review events to look for possible refactoring opportunity
+
+################################################################################
+class Message(object):
+
+    #---------------------------------------------------------------------------
+    def __init__(self, command, prefix=None, params=None, remarks=None):
+        if command is None:
+            raise ValueError('invalid command')
+
+        self.prefix = prefix
+        self.command = command
+        self.params = params
+        self.remarks = remarks
+
+    #---------------------------------------------------------------------------
+    def parse(message):
+        match = regex_message.match(message)
+
+        # XXX should we return None or raise?
+        if match is None or match is False:
+            return None
+
+        msg = Message(match.group('command').decode('utf-8').upper())
+
+        if match.group('prefix') is not None:
+            msg.prefix = match.group('prefix').decode('utf-8')
+
+        if match.group('params') is not None:
+            full_params = match.group('params').decode('utf-8')
+            parts = full_params.split(':', 1)
+
+            msg.params = parts[0].split()
+            msg.remarks = None if len(parts) == 1 else parts[1]
+
+        return msg
+
+    #---------------------------------------------------------------------------
+    def __repr__(self):
+        string = ''
+
+        if self.prefix:
+            string += ':' + self.prefix
+
+        string += self.command
+
+        if self.params:
+            for param in self.params:
+                string += ' ' + param
+
+        if self.remarks:
+            string += ' :' + self.remarks
+
+        return string
+
+################################################################################
+class Channel(object):
+
+    #---------------------------------------------------------------------------
+    def __init__(self, name, topic=None, key=None):
+        self.name = name
+        self.key = key
+        self.topic = topic
+        self.members = list()
+        self.members_lock = threading.Lock()
+        self.logger = logging.getLogger('juliet.Channel')
+
+    #---------------------------------------------------------------------------
+    def add_member(self, session):
+        if session in self.members:
+            raise AttributeError('session already in channel')
+
+        with self.members_lock:
+            self.members.append(session)
+
+        self.logger.info('User [%s] joined channel %s', session.nickname, self.name)
+
+    #---------------------------------------------------------------------------
+    def remove_member(self, session):
+        if session not in self.members:
+            raise AttributeError('session not in channel')
+
+        with self.members_lock:
+            self.members.remove(session)
+
+        self.logger.info('User [%s] left channel %s', session.nickname, self.name)
+
+    #---------------------------------------------------------------------------
+    def notify(self, sender, message, include_sender=False):
+        msg = f':{sender.prefix} {message}'
+        self.logger.debug('channel message -- %s', msg)
+
+        with self.members_lock:
+            for session in self.members:
+                if session != sender or include_sender:
+                    session.send(msg)
 
 ################################################################################
 class Session(object):
@@ -23,25 +125,31 @@ class Session(object):
 
         self.last_contact = None
         self.buffer = b''
-
         self.away = None
-        self.nickname = None
-        self.fullname = None
 
+        self.nickname = None
+        self.username = None
+        self.full_name = None
+        self.channels = dict()
+
+        self.host, self.port = socket.getpeername()
         self.pending_welcome = None
         self.authorized = (server.password is None)
-        self.host, self.port = socket.getpeername()
-        self.logger = logging.getLogger('juliet.Session')
         self.send_lock = threading.Lock()
+        self.logger = logging.getLogger('juliet.Session')
 
         # create event handlers
         self.on_away = juliet.Event()
+        self.on_join = juliet.Event()
         self.on_motd = juliet.Event()
         self.on_nick = juliet.Event()
+        self.on_part = juliet.Event()
         self.on_ping = juliet.Event()
         self.on_pong = juliet.Event()
         self.on_quit = juliet.Event()
         self.on_user = juliet.Event()
+        self.on_privmsg = juliet.Event()
+        self.on_welcome = juliet.Event()
 
         # set up the worker thread for this session
         self.worker_thread = threading.Thread(
@@ -51,26 +159,42 @@ class Session(object):
         self.worker_thread.start()
 
     #---------------------------------------------------------------------------
+    @property
+    def prefix(self):
+        return f'{self.nickname}!{self.username}@{self.host}'
+
+    #---------------------------------------------------------------------------
+    @property
+    def is_active(self):
+        return (self.active and self.socket)
+
+    #---------------------------------------------------------------------------
     def close(self):
         self.logger.debug('closing session')
 
-        if self.active and self.socket:
+        if self.socket is not None:
             try:
                 self.socket.close()
             except socket.error:
                 self.logger.debug('socket closed -- nothing to do')
-
-        self.socket = None
-        self.server.remove_session(self.nickname)
+            self.socket = None
 
     #---------------------------------------------------------------------------
-    def handle_user(self, args):
-        parts = args.split(b':', 1)
-        user_info = parts[0].split()
+    def handle_user(self, msg):
+        if msg.params is None or len(msg.params) < 3:
+            self.notify('461 :Not enough parameters')
+            return
 
-        self.logger.debug('welcome user %s', user_info)
-        self.username = user_info[0].decode('utf-8')
-        self.fullname = None if len(parts) < 2 else parts[1].decode('utf-8')
+        if self.username:
+            self.notify('462 :Already registered')
+            return
+
+        # TODO check if the username exists
+
+        self.username = msg.params[0]
+        self.full_name = msg.remarks
+
+        self.logger.debug('new user %s', self.username)
 
         if self.nickname is None:
             self.pending_welcome = True
@@ -80,129 +204,269 @@ class Session(object):
         self.on_user(self, self.username)
 
     #---------------------------------------------------------------------------
-    def handle_nick(self, nick):
-        if nick is None:
+    def handle_nick(self, msg):
+        if msg.params is None:
             self.notify('431 :Missing nickname')
+            return
 
-        elif self.server.get_session(nick):
+        nick = msg.params[0]
+
+        if self.server.get_session(nick):
             self.notify('433 * %s :Nickname in use', nick)
+            return
 
-        elif not regex_nickname.match(nick):
+        if not regex_nickname.match(nick):
             self.notify('432 * %s :Invalid nickname', nick)
+            return
 
-        else:
-            self.nickname = nick.decode('utf-8')
-            self.logger.info('registered nickname -- %s', self.nickname)
+        self.nickname = nick
+        self.logger.info('registered nickname -- %s', self.nickname)
 
-            if self.pending_welcome:
-                self.send_welcome()
+        if self.pending_welcome:
+            self.send_welcome()
 
-            self.on_nick(self, self.nickname)
+        self.on_nick(self, self.nickname)
 
     #---------------------------------------------------------------------------
-    def handle_away(self, away):
-        if away:
-            self.away = away.decode('utf-8')
-            self.logger.info('@%s is away -- %s', self.nickname, away)
-        else:
+    def handle_away(self, msg):
+        if msg.remarks is None:
             self.away = False
-            self.logger.info('@%s is not away', self.nickname)
+            self.logger.info('%s is not away', self.nickname)
 
-        self.on_away(self, away)
+        else:
+            self.away = msg.remarks
+            self.logger.info('%s is away -- %s', self.nickname, self.away)
+
+        self.on_away(self, self.away)
 
     #---------------------------------------------------------------------------
     def handle_motd(self):
-        if self.server.motd is None:
+        motd = self.server.motd
+
+        if motd is None:
             self.notify('422 {} :MOTD is missing', self.nickname)
+
         else:
+            # TODO wrap at 80 chars...
+            motd = motd.strip()
+
             self.notify('375 {} :- {} Message of the day -', self.nickname, self.server.name)
-            self.notify('372 {} :- {}', self.nickname, self.server.motd.strip())
+            self.notify('372 {} :- {}', self.nickname, motd)
             self.notify('376 {} :End of MOTD command', self.nickname)
 
-        self.on_motd(self, self.server.motd)
+        self.on_motd(self, motd)
 
     #---------------------------------------------------------------------------
-    def handle_ping(self, args):
-        if args is None:
-            self.notify('409 {} :Missing origin', self.nickname)
+    def handle_join(self, msg):
+        if msg.params is None:
+            self.notify('461 {} :Missing parameters', self.nickname)
+
+        elif msg.params[0] == 0:
+            self.logger.debug('%s is leaving all channels', self.nickname)
+
+            for name in self.channels:
+                self.part_channel(name)
+
         else:
-            token = args.decode('utf-8')
-            self.notify('PONG {} :{}', self.server.name, token)
-            self.on_ping(self, token)
+            channels = msg.params[0].split(',')
+            keys = list()
+
+            if len(msg.params) >= 2:
+                keys = msg.params[1].split(',')
+
+            for idx in range(len(channels)):
+                name = channels[idx]
+                key = None if idx >= len(keys) else keys[idx]
+                self.join_channel(name, key)
 
     #---------------------------------------------------------------------------
-    def handle_pong(self, args):
-        if args is None:
-            self.notify('409 {} :Missing origin', self.nickname)
+    def handle_part(self, msg):
+        if msg.params is None:
+            self.notify('461 {} :Missing parameters', self.nickname)
+
         else:
-            token = args.decode('utf-8')
-            self.on_pong(self, token)
+            for name in msg.params:
+                self.part_channel(name)
 
     #---------------------------------------------------------------------------
-    def handle_quit(self, reason):
-        if reason is not None:
-            reason = reason.decode('utf-8')
+    def handle_mode(self, msg):
+        subject = None if len(msg.params) < 1 else msg.params[0]
 
-        self.logger.info('User quit -- %s%s', self.nickname, reason or '')
+        if subject is None:
+            self.notify('461 {} :Missing parameters', self.nickname)
+
+        elif subject == self.nickname:
+            flags = None if len(msg.params) == 1 else msg.params[1]
+
+            if flags is None:
+                self.notify('221 {} +', self.nickname)
+            else:
+                self.logger.debug('set user mode: %s => %s', self.nickname, flags)
+                self.notify('501 {} :Unknown MODE -- {}', self.nickname, flags)
+
+        # FIXME channel name to lower case
+        elif subject in self.channels:
+            channel = self.channels[subject]
+            flags = None if len(msg.params) == 1 else msg.params[1]
+
+            if flags is None:
+                self.notify('324 {} {} +', self.nickname, channel.name)
+            else:
+                self.logger.debug('set channel mode: %s => %s', channel.name, flags)
+                self.notify('472 {} :Unknown MODE -- {}', self.nickname, flags)
+
+        else:
+            self.notify('442 {} :Not on channel -- {}', self.nickname, subject)
+            #self.notify('403 {} {} :No such channel', self.nickname, subject)
+
+    #---------------------------------------------------------------------------
+    def handle_ping(self, msg):
+        if msg.params is None:
+            self.notify('409 {} :Missing origin', self.nickname)
+
+        else:
+            origin = msg.params[0]
+            self.notify('PONG {} :{}', self.server.name, origin)
+            self.on_ping(self, origin)
+
+    #---------------------------------------------------------------------------
+    def handle_pong(self, msg):
+        if msg.params is None:
+            self.notify('409 {} :Missing origin', self.nickname)
+
+        else:
+            origin = msg.params[0]
+            self.on_pong(self, origin)
+
+    #---------------------------------------------------------------------------
+    def handle_privmsg(self, msg):
+        if msg.params is None:
+            self.notify('411 {} :No recipient', self.nickname)
+
+        elif msg.remarks is None:
+            self.notify('412 {} :No text to send', self.nickname)
+
+        else:
+            for recip in msg.params[0].split(','):
+                self.privmsg(recip, msg.remarks)
+
+    #---------------------------------------------------------------------------
+    def handle_quit(self, msg):
+        self.logger.info('User quit -- %s%s', self.nickname, msg.remarks or '')
 
         self.close()
 
-        self.on_quit(self, reason)
+        self.on_quit(self, msg.remarks)
 
     #---------------------------------------------------------------------------
-    def handle_command(self, command, args):
-        if command is None: return
+    def handle_message(self, msg):
+        if msg is None: return
 
         # TODO if server has password, check session authorized before other commands
+        # TODO if user is not registered, block other commands
 
-        command = command.upper()
-        self.logger.debug('command -- %s [%s]', command, args)
+        self.logger.debug('incoming message -- %s', msg)
 
-        if command == 'AWAY':
-            self.handle_away(args)
-        elif command == 'CAP':
+        if msg.command == 'AWAY':
+            self.handle_away(msg)
+        elif msg.command == 'JOIN':
+            self.handle_join(msg)
+        elif msg.command == 'LIST':
             pass
-        elif command == 'MODE':
-            pass
-        elif command == 'MOTD':
+        elif msg.command == 'MODE':
+            self.handle_mode(msg)
+        elif msg.command == 'MOTD':
             self.handle_motd()
-        elif command == 'NICK':
-            self.handle_nick(args)
-        elif command == 'PASS':
+        elif msg.command == 'NICK':
+            self.handle_nick(msg)
+        elif msg.command == 'PART':
+            self.handle_part(msg)
+        elif msg.command == 'PASS':
             pass
-        elif command == 'PING':
-            self.handle_ping(args)
-        elif command == 'PONG':
-            self.handle_pong(args)
-        elif command == 'QUIT':
-            self.handle_quit(args)
-        elif command == 'USER':
-            self.handle_user(args)
+        elif msg.command == 'PING':
+            self.handle_ping(msg)
+        elif msg.command == 'PONG':
+            self.handle_pong(msg)
+        elif msg.command == 'PRIVMSG':
+            self.handle_privmsg(msg)
+        elif msg.command == 'QUIT':
+            self.handle_quit(msg)
+        elif msg.command == 'USER':
+            self.handle_user(msg)
         else:
-            self.logger.warning('Unrecognized command -- %s', command)
+            self.notify('421 {} {} :Unknown command', self.nickname or '*', msg.command)
+
+    #---------------------------------------------------------------------------
+    def join_channel(self, name, key=None):
+        if not regex_channel.match(name):
+            self.notify('403 {} {} :No such channel', self.nickname, name)
+            return
+
+        channel = self.server.get_channel(name)
+        if channel is None:
+            channel = self.server.create_channel(name)
+
+        if channel.key != key:
+            self.notify('475 {} {} :Wrong key for channel (+k)', self.nickname, name)
+            return
+
+        channel.add_member(self)
+        channel.notify(self, 'JOIN ' + name, include_sender=True)
+        # TODO send current users
+
+        if channel.topic:
+            self.notify('332 {} {} :{}', self.nickname, name, channel.topic)
+        else:
+            self.notify('331 {} {} :No topic', self.nickname, name)
+
+        self.logger.info(
+            '%s joined channel %s -- [key:%s]',
+            self.nickname, name, (key is not None)
+        )
+
+        self.channels[name] = channel
+        self.on_join(self, name)
+
+    #---------------------------------------------------------------------------
+    def part_channel(self, name, remarks=None):
+        self.logger.info('%s parted channel %s', self.nickname, name)
+
+        channel = self.server.get_channel(name)
+
+        if channel is None:
+            self.notify('403 {} {} :No such channel', self.nickname, name)
+        if name not in self.channels:
+            self.notify('442 {} :Not on channel -- {}', self.nickname, name)
+        else:
+            channel.notify(self, f'PART {name}', include_sender=True)
+            channel.remove_member(self)
+            self.on_part(self, name)
 
     #---------------------------------------------------------------------------
     def parse_buffer(self):
         lines = regex_eol.split(self.buffer)
-        self.buffer = b''
+
+        # split will leave an empty element if the end of the buffer is a newline
+        # otherwise, it will contain a partial command that is picked up next time
+        self.buffer = lines[-1]
 
         for line in lines:
+            # skip empty lines...
             if not line: continue
 
-            parts = line.split(b' ', 1)
-            command = parts[0].decode('utf-8', errors='replace')
-            args = None if len(parts) == 1 else parts[1]
+            msg = Message.parse(line)
+
+            if not msg:
+                self.logger.warning('invalid message -- %s', line)
+                continue
 
             try:
-                self.handle_command(command, args)
+                self.handle_message(msg)
             except:
                 self.logger.error('error processing command', exc_info=True)
 
     #---------------------------------------------------------------------------
-    def send(self, msg, *args):
-        if args is not None:
-            msg = msg.format(*args)
-
+    def send(self, msg):
         resp = f'{msg}\r\n'
 
         with self.send_lock:
@@ -210,19 +474,41 @@ class Session(object):
             self.socket.send(bytes(resp, 'utf-8'))
 
     #---------------------------------------------------------------------------
-    def send_ping(self):
-        self.send('PING {}', self.server.hostname)
-
-    #---------------------------------------------------------------------------
     def notify(self, msg, *args):
         if args is not None:
             msg = msg.format(*args)
 
-        self.send(':{} {}', self.server.name, msg)
+        self.send(f':{self.server.name} {msg}')
+
+    #---------------------------------------------------------------------------
+    def ping(self):
+        try:
+            self.send(f'PING {self.server.hostname}')
+        except:
+            pass
+
+    #---------------------------------------------------------------------------
+    def privmsg(self, recipient, message):
+        self.logger.debug('privmsg %s -> %s -- %s', self.nickname, recipient, message)
+
+        channel = self.server.get_channel(recipient)
+        session = self.server.get_session(recipient)
+
+        if session is not None:
+            session.send(f'{self.prefix} PRIVMSG {recipient} {message}')
+            self.on_privmsg(self, recipient, message)
+        elif channel is not None:
+            channel.notify(self, f'PRIVMSG {recipient} :{message}')
+            self.on_privmsg(self, recipient, message)
+        else:
+            self.notify('401 {} {} :No such recipient', self.nickname, recipient)
 
     #---------------------------------------------------------------------------
     def send_welcome(self):
-        self.logger.info('Registering new user -- %s @%s', self.username, self.nickname)
+        if self.username is None or self.nickname is None:
+            raise AttributeError('incomplete user information')
+
+        self.logger.info('User Registered -- %s %s', self.username, self.nickname)
 
         self.notify(
             '001 {} :Welcome to the mesh IRC network {} -- {}@{}',
@@ -244,9 +530,15 @@ class Session(object):
             self.nickname, self.server.name, juliet.VERSION
         )
 
+        self.notify(
+            '251 {} :There are {} users on 1 server',
+            self.nickname, len(self.server.sessions)
+        )
+
         self.handle_motd()
 
         self.pending_welcome = False
+        self.on_welcome(self)
 
     #---------------------------------------------------------------------------
     def _thread_worker(self):
@@ -286,13 +578,16 @@ class Server(object):
         self.port = port
         self.motd = motd
         self.password = password
-
         self.socket = None
+
         self.sessions = list()
         self.session_lock = threading.Lock()
 
+        self.channels = dict()
+        self.channel_lock = threading.Lock()
+
         self.active = None
-        self.start_time = datetime.now(tz=timezone.utc)
+        self.start_time = None
 
         server_name_limit = 63  # From the RFC.
         self.hostname = socket.getfqdn(address)[:server_name_limit]
@@ -307,30 +602,37 @@ class Server(object):
     #---------------------------------------------------------------------------
     def start(self):
         self.logger.debug('starting server -- %s:%d', self.address, self.port)
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        ping_thread = threading.Thread(
-            name=f'SessionPing', target=self._ping_worker, daemon=True
+        self.start_time = datetime.now(tz=timezone.utc)
+
+        watcher_thread = threading.Thread(
+            name=f'SessionWatcher', target=self._watcher, daemon=True
         )
 
         self.active = True
+
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         with self.socket:
             self.socket.bind((self.address, self.port))
             self.socket.listen()
             self.logger.info('Server started -- %s:%d', self.address, self.port)
 
-            ping_thread.start()
+            watcher_thread.start()
 
             while self.active:
                 conn, addr = self.socket.accept()
                 self.logger.info('Client connected -- %s:%d', addr[0], addr[1])
 
                 session = Session(self, conn)
+                session.on_quit += self.session_quit
+
                 with self.session_lock:
                     self.sessions.append(session)
 
-        ping_thread.join()
+        self.active = False
+
+        watcher_thread.join()
         self.logger.info('Server stopped')
 
     #---------------------------------------------------------------------------
@@ -347,16 +649,11 @@ class Server(object):
         self.socket.close()
 
     #---------------------------------------------------------------------------
-    def remove_session(self, nick):
-        self.logger.debug('removing session -- %s', nick)
+    def session_quit(self, session, reason):
+        self.logger.debug('session quit [%s] -- %s', id(session), reason)
 
-        session = self.get_session(nick)
-
-        if session is None:
-            self.logger.warning('Invalid session; nickname not found: %s', nick)
-        else:
-            with self.session_lock:
-                self.sessions.remove(session)
+        with self.session_lock:
+            self.sessions.remove(session)
 
     #---------------------------------------------------------------------------
     def get_session(self, nick):
@@ -370,7 +667,39 @@ class Server(object):
         return None
 
     #---------------------------------------------------------------------------
-    def _ping_worker(self):
+    def get_channel(self, name):
+        if name is None:
+            raise ValueError('name cannot be None')
+
+        channel = None
+        name = name.lower()
+
+        with self.channel_lock:
+            if name in self.channels:
+                channel = self.channels[name]
+
+        return channel
+
+    #---------------------------------------------------------------------------
+    def create_channel(self, name, key=None):
+        if name is None:
+            raise ValueError('name cannot be None')
+
+        name = name.lower()
+
+        if name in self.channels:
+            raise AttributeError('channel exists')
+
+        with self.channel_lock:
+            channel = Channel(name, key=key)
+            self.channels[name] = channel
+
+        self.logger.info('Channel %s created [key:%s]', name, (key is not None))
+
+        return channel
+
+    #---------------------------------------------------------------------------
+    def _watcher(self):
         self.logger.debug('ping thread starting')
 
         while self.active:
@@ -384,12 +713,19 @@ class Server(object):
 
                     self.logger.debug('session [%s] last contact: %s sec', id(session), last_contact)
 
-                    if total_sec > SESSION_TIMEOUT_SEC * 1.25:
-                        self.logger.debug('client timeout')
-                        session.close()
-                    elif total_sec > SESSION_TIMEOUT_SEC:
+                    if not session.is_active:
                         self.logger.debug('client inactive')
-                        session.send_ping()
+                        self.session_quit(session, 'inactive')
+                        session.close()
+
+                    elif total_sec > SESSION_TIMEOUT_SEC * 2:
+                        self.logger.debug('client timeout')
+                        self.session_quit(session, 'timeout')
+                        session.close()
+
+                    elif total_sec > SESSION_TIMEOUT_SEC:
+                        self.logger.debug('client idle')
+                        session.ping()
 
             time.sleep(SESSION_TIMEOUT_SEC / 2)
 

@@ -35,10 +35,16 @@ This node will receive all data it sends.  It is mostly used for testing.
 
 This node will send and recieve messages over a serial port.
 
-### Custom Mesh Nodes ##
+### Custom Mesh Nodes ###
 
 Developers are able to build custom mesh nodes using the `juliet.MeshNode` base class.
 
 See the existing node types for examples.
+
+## References ##
+
+* https://tools.ietf.org/html/rfc1459
+* https://realpython.com/python-sockets/
+* https://github.com/jrosdahl/miniircd
 
 _-73_
