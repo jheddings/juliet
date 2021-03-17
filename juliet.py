@@ -107,9 +107,15 @@ class Message(object):
             raise ValueError('invalid command')
 
         self.prefix = prefix
-        self.command = command
         self.params = params
         self.remarks = remarks
+
+        try:
+            self.reply = int(command)
+            self.command = None
+        except ValueError:
+            self.command = command
+            self.reply = None
 
     #---------------------------------------------------------------------------
     def parse(line):
@@ -143,7 +149,10 @@ class Message(object):
         if self.prefix:
             string += ':' + self.prefix + ' '
 
-        string += self.command
+        if self.command is None:
+            string += '{0:03n}'.format(self.reply)
+        else:
+            string += self.command
 
         if self.params:
             for param in self.params:
@@ -297,7 +306,7 @@ class Client():
     def _handle_message(self, msg):
         self.logger.debug('incoming message -- %s', msg)
 
-        if msg.command == '001':
+        if msg.reply == 1:
             self.logger.debug('received welcome -- %s', msg.remarks)
             self.on_welcome(self, msg.remarks)
 
@@ -528,6 +537,7 @@ class Juliet(object):
 
         client.on_connect += self._on_client_connect
         client.on_disconnect += self._on_client_disconnect
+        client.on_privmsg += self._on_client_privmsg
 
         self.logger.debug('client [%s] attached', id(client))
 
@@ -588,6 +598,18 @@ class Juliet(object):
                 elif total_sec > SESSION_TIMEOUT_SEC:
                     self.logger.debug('client idle')
                     client.ping()
+
+    #---------------------------------------------------------------------------
+    def _on_client_privmsg(self, client, sender, recip, txt):
+        self.logger.debug('incoming message %s -> %s -- %s', sender, recip, txt)
+
+        # TODO if we get a direct message, process the command
+        if recip == client.nickname:
+            self.logger.debug('handle command -- %s', txt)
+
+        # TODO if we get a channel message, broadcast to radio
+        else:
+            self.logger.debug('transmit message -- %s', txt)
 
     #---------------------------------------------------------------------------
     def _on_client_connect(self, client):
