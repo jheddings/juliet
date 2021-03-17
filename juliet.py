@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 
-# juliet - a simple 2-way serial message client
+# juliet - an IRC bot for relaying to radio networks
 
 import os
+import sys
 import re
 import queue
 import threading
-import binascii
-import zlib
-import base64
+import socket
 import time
 import logging
 import serial
-import blessed
-import mimetypes
 
 from datetime import datetime, timezone
 
+SOCKET_BUFFER_SIZE = 1024
+SESSION_TIMEOUT_SEC = 90
+
 packed_msg_re = re.compile(r'^>>(?P<ver>[a-fA-F0-9]+):(?P<crc>[a-zA-Z0-9]+):(?P<sender>[a-zA-Z0-9~/=+_$@#*&%!|-]+)?:(?P<time>[0-9]{14})?:(?P<msg>.+)(?!\\):(?P<sig>[a-zA-Z0-9]+)?<<$')
+
+regex_eol = re.compile(rb'\r?\n')
+regex_irc_message = re.compile(rb'^(:(?P<prefix>[^:\s]+)\s+)?(?P<command>([a-zA-Z]+|[0-9]+))\s*(?P<params>.+)?$')
 
 ################################################################################
 safe_filename_chars = '.-_ '
@@ -98,235 +101,245 @@ class Event(list):
 ################################################################################
 class Message(object):
 
-    version = None
+    #---------------------------------------------------------------------------
+    def __init__(self, command, prefix=None, params=None, remarks=None):
+        if command is None:
+            raise ValueError('invalid command')
+
+        self.prefix = prefix
+        self.command = command
+        self.params = params
+        self.remarks = remarks
 
     #---------------------------------------------------------------------------
-    def __init__(self, content, sender=None, signature=None, timestamp=None):
-        self.content = content
-        self.sender = sender
-        self.signature = signature
+    def parse(line):
+        match = regex_irc_message.match(line)
 
-        if timestamp is None:
-            self.timestamp = datetime.now(tz=timezone.utc)
-        else:
-            self.timestamp = timestamp.astimezone(timezone.utc)
-
-        # juliet messages are only accurate to the second...
-        self.timestamp = self.timestamp.replace(microsecond=0)
-
-    #---------------------------------------------------------------------------
-    # sign this message with the given private key
-    def sign(self, privkey):
-        return None
-
-    #---------------------------------------------------------------------------
-    # confirm the signature of the message
-    def verify(self, pubkey):
-        return None
-
-    #---------------------------------------------------------------------------
-    # confirm the integrity of the message
-    def is_valid(self):
-        return None
-
-    #---------------------------------------------------------------------------
-    def pack(self):
-        sender = '' if self.sender is None else self.sender
-        tstamp = format_timestamp(self.timestamp)
-        sig = '' if self.signature is None else self.signature
-        content = self.pack_content()
-
-        crc = checksum(sender, tstamp, content, sig)
-
-        text = f'>>{self.version:X}:{crc:04X}:{sender}:{tstamp}:{content}:{sig}<<'
-        data = bytes(text, 'utf-8')
-
-        return data
-
-    #---------------------------------------------------------------------------
-    def unpack(data):
-        if data is None or len(data) == 0:
-            return None
-
-        # XXX prefer to data.split(b':') and work with parts
-        # XXX - need to check for header and footer
-        # XXX - how to handle : in the content?
-
-        try:
-            text = str(data, 'utf-8')
-        except UnicodeDecodeError as ude:
-            return None
-
-        match = packed_msg_re.match(text)
+        # XXX should we return None or raise?
         if match is None or match is False:
-            print('NO MATCH')
             return None
 
-        content = match.group('msg')
-        version = int(match.group('ver'), 16)
+        msg = Message(match.group('command').decode('utf-8').upper())
 
-        if version == 0:
-            msg = TextMessage(content=content)
-        elif version == 1:
-            msg = CompressedTextMessage(content=content)
-        elif version == 3:
-            msg = FileMessage(content=content)
-        else:
-            raise Exception('unsupported version')
+        if match.group('prefix') is not None:
+            msg.prefix = match.group('prefix').decode('utf-8')
 
-        checksum = int(match.group('crc'), 16)
-        # TODO confirm checksum - should we allow "invalid" messages?
+        if match.group('params') is not None:
+            full_params = match.group('params').decode('utf-8')
+            parts = full_params.split(':', 1)
 
-        # timestamps are in UTC
-        tstamp = parse_timestamp(match.group('time'))
-        tstamp = tstamp.replace(tzinfo=timezone.utc)
-
-        msg.sender = match.group('sender')
-        msg.signature = match.group('sig')
-
-        msg.unpack_content()
+            msg.params = parts[0].split()
+            msg.remarks = None if len(parts) == 1 else parts[1]
 
         return msg
 
     #---------------------------------------------------------------------------
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return self.__dict__ == other.__dict__
-        return NotImplemented
+    def __repr__(self):
+        string = ''
+
+        if self.prefix:
+            string += ':' + self.prefix + ' '
+
+        string += self.command
+
+        if self.params:
+            for param in self.params:
+                string += ' ' + param
+
+        if self.remarks:
+            string += ' :' + self.remarks
+
+        return string
 
 ################################################################################
-class CompressedMessage(Message):
-
-    #---------------------------------------------------------------------------
-    def compress(self, content):
-        data = content.encode('utf-8')
-        compressed = zlib.compress(data)
-        b64 = base64.b64encode(compressed)
-        return str(b64, 'ascii')
-
-    #---------------------------------------------------------------------------
-    def decompress(self, content):
-        b64 = bytes(content, 'ascii')
-        compressed = base64.b64decode(b64)
-        data = zlib.decompress(compressed)
-        return data.decode('utf-8')
-
-################################################################################
-class TextMessage(Message):
-
-    version = 0
-
-    #---------------------------------------------------------------------------
-    def pack_content(self):
-        return self.content.replace(':', '\\:')
-
-    #---------------------------------------------------------------------------
-    def unpack_content(self):
-        self.content = self.content.replace('\\:', ':')
-
-################################################################################
-class CompressedTextMessage(CompressedMessage):
-
-    version = 1
-
-    #---------------------------------------------------------------------------
-    def pack_content(self):
-        return self.compress(self.content)
-
-    #---------------------------------------------------------------------------
-    def unpack_content(self):
-        self.content = self.decompress(self.content)
-
-################################################################################
-class ThreadedMessage(Message):
-
-    version = 2
-    origin = None
-
-    #---------------------------------------------------------------------------
-    def __init__(self, content, origin, sender=None, signature=None, timestamp=None):
-        Message.__init__(self, content, sender, signature, timestamp)
-
-        # origin must be properly filled out
-        if origin is None or origin.sender is None or origin.timestamp is None:
-            raise ValueError('invalid origin for ThreadedMessage')
-
-        self.origin = origin.sender + '+' + format_timestamp(origin.timestamp)
-
-    #---------------------------------------------------------------------------
-    def pack_content(self):
-        return self.origin + '|' + self.content
-
-    #---------------------------------------------------------------------------
-    def unpack_content(self):
-        if self.content is None:
-            return None
-
-        (origin, content) = self.content.split('|', 1)
-
-        self.origin = origin
-        self.content = content
-
-################################################################################
-class FileMessage(CompressedMessage):
-
-    version = 3
-    filename = None
-    mimetype = None
-
-    #---------------------------------------------------------------------------
-    def __init__(self, content, filename=None, mimetype=None, sender=None, signature=None, timestamp=None):
-        CompressedMessage.__init__(self, content, sender, signature, timestamp)
-
-        self.filename = make_safe_filename(filename)
-
-        if mimetype is None and filename is not None:
-            guess = mimetypes.guess_type(filename)
-            self.mimetype = guess[0] or 'application/octet-stream'
-        else:
-            self.mimetype = mimetype
-
-    #---------------------------------------------------------------------------
-    def pack_content(self):
-        filename = make_safe_filename(self.filename) or ''
-        mimetype = self.mimetype or ''
-        compressed = self.compress(self.content)
-        return filename + '|' + mimetype + '|' + compressed
-
-    #---------------------------------------------------------------------------
-    def unpack_content(self):
-        (filename, mimetype, compressed) = self.content.split('|', 2)
-        self.filename = make_safe_filename(filename)
-        self.mimetype = mimetype if len(mimetype) > 0 else None
-        self.content = self.decompress(compressed)
-
-################################################################################
+# a simple event-based IRC client
+# modified from: https://github.com/jheddings/idlebot
+#
 # Events => Handler Function
-#   subscribe => func(radio, msg)
-class MessageBroker(object):
+#   on_welcome => func(client, msg)
+#   on_connect => func(client)
+#   on_quit => func(client, msg)
+#   on_ping => func(client, txt)
+#   on_privmsg => func(client, sender, recip, msg)
+#   on_notice => func(client, sender, recip, msg)
+#   on_join => func(client, channel)
+#   on_part => func(client, channel, msg)
+class Client():
 
     #---------------------------------------------------------------------------
-    def __init__(self, radio):
-        self.radio = radio
+    def __init__(self, nick, name='Juliet Radio Bot'):
+        self.logger = logging.getLogger('juliet.Client')
 
-        self.subscribe = Event()
+        self.nickname = nick
+        self.fullname = name
 
-        radio.on_recv += self._radio_recv
+        self.buffer = b''
+        self.last_contact = None
 
-        self.logger = logging.getLogger('juliet.MessageBroker')
+        self.daemon = threading.Thread(
+            name='Juliet.Daemon',
+            target=self._thread_worker,
+            daemon=True
+        )
+
+        # initialize event handlers
+        self.on_connect = Event()
+        self.on_welcome = Event()
+
+        self.on_join = Event()
+        self.on_notice = Event()
+        self.on_part = Event()
+        self.on_ping = Event()
+        self.on_privmsg = Event()
+        self.on_quit = Event()
+
+        # self-register for events we care about
+        self.on_ping += self._on_ping
 
     #---------------------------------------------------------------------------
-    def publish(self, msg):
-        data = msg.pack()
-        self.radio.send(data)
+    @property
+    def is_active(self):
+        return (self.daemon is not None and self.socket is not None)
 
     #---------------------------------------------------------------------------
-    def _radio_recv(self, radio, data):
-        msg = Message.unpack(data)
+    def connect(self, server, port=6667, passwd=None):
+        self.logger.debug('connecting to IRC server: %s:%d', server, port)
 
-        if msg is not None:
-            self.subscribe(self, msg)
-            self.logger.debug('received message -- %s', msg)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.connect((server, port))
+
+        # startup the daemon if configured...
+        self.daemon.start()
+
+        if passwd is not None:
+            self._send('PASS {0}', passwd)
+
+        self._send('NICK {0}', self.nickname)
+        self._send('USER {0} - {1}', self.nickname, self.fullname)
+
+        # notify on_connect event handlers
+        self.on_connect(self)
+
+    #---------------------------------------------------------------------------
+    def join(self, channel):
+        self._send('JOIN {0}', channel)
+
+    #---------------------------------------------------------------------------
+    def part(self, channel, msg):
+        self._send('PART {0} :{1}', channel, msg)
+
+    #---------------------------------------------------------------------------
+    def ping(self):
+        self._send('PING {0}', id(self))
+
+    #---------------------------------------------------------------------------
+    def privmsg(self, recip, msg):
+        self._send('PRIVMSG {0} :{1}', recip, msg)
+
+    #---------------------------------------------------------------------------
+    def mode(self, nick, flags):
+        self._send('MODE {0} {1}', nick, flags)
+
+    #---------------------------------------------------------------------------
+    def quit(self, msg=None):
+        if msg is None:
+            self._send('QUIT')
+        else:
+            self._send('QUIT :{0}', msg)
+
+        # wait for the deamon to exit...
+        if (self.daemon is not None):
+            self.daemon.join()
+
+        # notify on_quit event handlers
+        self.on_quit(self, msg)
+
+        self.socket.close()
+        self.logger.debug('connection closed')
+
+    #---------------------------------------------------------------------------
+    def _on_ping(self, client, origin):
+        client._send('PONG {} :{0}', client.nickname, origin)
+
+    #---------------------------------------------------------------------------
+    def _send(self, msg, *args):
+        if args is not None:
+            msg = msg.format(*args)
+
+        self.logger.debug('>> %s', msg)
+
+        data = bytes(msg, 'utf-8') + b'\r\n'
+        self.socket.sendall(data)
+
+    #---------------------------------------------------------------------------
+    def _handle_message(self, msg):
+        self.logger.debug('incoming message -- %s', msg)
+
+        if msg.command == '001':
+            self.on_welcome(self, msg.remarks)
+
+        elif msg.command == 'PING':
+            self.on_ping(self, msg.remarks)
+
+        elif msg.command == 'PRIVMSG':
+            self.on_privmsg(self, origin, recip, txt)
+
+        elif msg.command == 'NOTICE':
+            self.on_notice(self, origin, recip, txt)
+
+        elif msg.command == 'JOIN':
+            self.on_join(self, channel)
+
+        elif msg.command == 'PART':
+            self.on_part(self, channel, txt)
+
+    #---------------------------------------------------------------------------
+    def _thread_worker(self):
+        self.logger.debug(': begin comm loop')
+
+        while self.socket:
+            data = None
+
+            try:
+                data = self.socket.recv(SOCKET_BUFFER_SIZE)
+
+                if not data:
+                    self.logger.debug('socket close by remote')
+                    break
+
+            except socket.error as err:
+                self.logger.debug('socket error', exc_info=True)
+                break
+
+            self.logger.debug('received data -- %s', data)
+            self.last_contact = datetime.now(tz=timezone.utc)
+
+            self.buffer += data
+            self._parse_buffer()
+
+    #---------------------------------------------------------------------------
+    def _parse_buffer(self):
+        lines = regex_eol.split(self.buffer)
+
+        # split will leave an empty element if the end of the buffer is a newline
+        # otherwise, it will contain a partial command that is picked up next time
+        self.buffer = lines[-1]
+
+        for line in lines:
+            # skip empty lines...
+            if not line: continue
+
+            self.logger.debug('<< %s', line)
+            msg = Message.parse(line)
+
+            if not msg:
+                self.logger.warning('invalid message -- %s', line)
+                continue
+
+            try:
+                self._handle_message(msg)
+            except:
+                self.logger.error('error processing command', exc_info=True)
 
 ################################################################################
 # Events => Handler Function
@@ -460,92 +473,79 @@ class RadioComm(CommBase):
             time.sleep(1)
 
 ################################################################################
-class Console(object):
+class Juliet(object):
 
     #---------------------------------------------------------------------------
-    def __init__(self, radio, terminal=None):
-        self.radio = radio
-        self.terminal = blessed.Terminal() if terminal is None else terminal
-
-        self.broker = MessageBroker(radio)
-        self.broker.subscribe += self.recv_msg
-
-        #self.radio.on_recv += self.recv_msg
-        #self.radio.on_xmit += self.xmit_msg
-
-        self.active = False
-
-        self.logger = logging.getLogger('juliet.Console')
+    def __init__(self):
+        self.clients = list()
+        self.logger = logging.getLogger('juliet.Juliet')
 
     #---------------------------------------------------------------------------
-    def run(self):
+    def attach(self, client):
+        if client in self.clients:
+            raise ValueError('duplicate client')
+
+        client.on_quit += self._on_client_quit
+        self.clients.append(client)
+
+    #---------------------------------------------------------------------------
+    def detach(self, client):
+        if client not in self.clients:
+            raise ValueError('no such client')
+
+        self.clients.remove(client)
+
+    #---------------------------------------------------------------------------
+    def start(self):
+        self.logger.debug('starting main loop')
         self.active = True
 
         try:
-            self._run_loop()
-        except EOFError:
-            self.logger.info('End of input')
+            self._run()
+        except KeyboardInterrupt:
+            self.logger.info('Canceled by user')
 
+        self.active = False
+        self.logger.debug('exiting main loop')
+
+    #---------------------------------------------------------------------------
+    def stop(self):
+        self.logger.debug('stopping main loop')
         self.active = False
 
     #---------------------------------------------------------------------------
-    def _run_loop(self):
-        self.logger.debug('entering run loop')
-
+    def _run(self):
         while self.active:
-            text = None
+            time.sleep(SESSION_TIMEOUT_SEC / 2)
+            now = datetime.now(tz=timezone.utc)
 
-            try:
+            for client in self.clients:
+                last_contact = now - client.last_contact
+                total_sec = last_contact.total_seconds()
 
-                text = input(': ')
+                self.logger.debug(
+                    'client [%s] last contact: %s sec',
+                    id(client), last_contact
+                )
 
-            # ignore ^C - cancel current msg
-            except KeyboardInterrupt:
-                print()
-                continue
+                if not client.is_active:
+                    self.logger.debug('client inactive')
+                    self.detach(client)
 
-            msg = TextMessage(content=text)
-            self.broker.publish(msg)
+                elif total_sec > SESSION_TIMEOUT_SEC * 2:
+                    self.logger.debug('client timeout')
+                    self.detach(client)
 
-            #data = bytes(text, 'utf-8')
-            #self.radio.send(data)
-
-        self.logger.debug('exiting run loop')
-
-    #---------------------------------------------------------------------------
-    def xmit_msg(self, radio, msg):
-        print(f'\n> {msg}\n: ', end='')
-
-    #---------------------------------------------------------------------------
-    def recv_msg(self, radio, msg):
-        print(f'\n< {msg}\n: ', end='')
-
-################################################################################
-class Reflector(object):
+                elif total_sec > SESSION_TIMEOUT_SEC:
+                    self.logger.debug('client idle')
+                    client.ping()
 
     #---------------------------------------------------------------------------
-    def __init__(self, broker):
-        self.broker = broker
-
-        # TODO watch for messages from broker and relay to reflector (server)
+    def _on_client_quit(self, client, reason):
+        self.detach(client)
 
 ################################################################################
-def parse_args():
-    import argparse
-
-    argp = argparse.ArgumentParser(description='juliet: a simple 2-way serial text client')
-
-    argp.add_argument('--config', default='juliet.cfg',
-                      help='configuration file (default: juliet.cfg)')
-
-    # juliet.cfg overrides these values
-    argp.add_argument('--port', help='serial port for comms')
-    argp.add_argument('--baud', help='baud rate for comms')
-
-    return argp.parse_args()
-
-################################################################################
-def load_config(args):
+def load_config(config_file):
     import yaml
     import logging.config
 
@@ -553,8 +553,6 @@ def load_config(args):
         from yaml import CLoader as YamlLoader
     except ImportError:
         from yaml import Loader as YamlLoader
-
-    config_file = args.config
 
     if not os.path.exists(config_file):
         print(f'ERROR: config file does not exist: {config_file}')
@@ -571,32 +569,23 @@ def load_config(args):
             else:
                 logging.basicConfig(level=logging.WARN)
 
-    # TODO error checking on parameters
-
-    if 'port' not in conf:
-        conf['port'] = args.port
-
-    if 'baud' not in conf:
-        conf['baud'] = args.baud
-
     return conf
 
 ################################################################################
 ## MAIN ENTRY
 
 if __name__ == '__main__':
-    args = parse_args()
-    conf = load_config(args)
+    config_file = sys.argv[1]
+    conf = load_config(config_file)
 
-    radio = RadioComm(
-        serial_port=conf['port'],
-        baud_rate=conf['baud']
-    )
+    jules = Juliet()
 
-    term = blessed.Terminal()
-    jules = Console(radio, term)
+    client = Client(nick='juliet')
+    jules.attach(client)
 
-    jules.run()
+    client.connect('defiant.local')
 
-    radio.close()
+    jules.start()
+
+    client.quit()
 
