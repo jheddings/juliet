@@ -2,7 +2,7 @@
 
 BASEDIR ?= $(PWD)
 APPNAME ?= juliet
-SRCDIR ?= $(BASEDIR)/src/$(APPNAME)
+SRCDIR ?= $(BASEDIR)/src
 
 ################################################################################
 .PHONY: all
