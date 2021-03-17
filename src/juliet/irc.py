@@ -16,6 +16,9 @@ SOCKET_BUFFER_SIZE = 1024
 regex_eol = re.compile(rb'\r?\n')
 regex_irc_message = re.compile(rb'^^(:(?P<prefix>[^:\s]+)\s+)?((?P<command>[a-zA-Z]+)|(?P<reply>[0-9]+))\s*(?P<params>.+)?$')
 
+# XXX review irc python module and consider refactoring:
+# https://github.com/jaraco/irc/blob/main/scripts/testbot.py
+
 ################################################################################
 class Message(object):
 
@@ -87,11 +90,15 @@ class Message(object):
 class Client():
 
     #---------------------------------------------------------------------------
-    def __init__(self, nick, name='Juliet Radio Bot'):
+    def __init__(self, nick, user=None, name=None):
         self.logger = logging.getLogger('juliet.Client')
 
+        if nick is None:
+            raise ValueError('empty nickname')
+
         self.nickname = nick
-        self.fullname = name
+        self.username = user or nick
+        self.fullname = name or nick
 
         self.active = False
         self.buffer = b''
@@ -125,17 +132,17 @@ class Client():
         return (self.active and self.daemon is not None and self.socket is not None)
 
     #---------------------------------------------------------------------------
-    def connect(self, server, port=6667, passwd=None):
+    def connect(self, server, port=6667, password=None):
         self.logger.debug('connecting to IRC server: %s:%d', server, port)
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((server, port))
 
-        if passwd is not None:
-            self._send('PASS {0}', passwd)
+        if password is not None:
+            self._send('PASS {0}', password)
 
         self._send('NICK {0}', self.nickname)
-        self._send('USER {0} - {1}', self.nickname, self.fullname)
+        self._send('USER {0} 0 * :{1}', self.username, self.fullname)
 
         # startup the daemon if configured...
         self.daemon.start()
@@ -158,8 +165,11 @@ class Client():
         self.on_disconnect(self)
 
     #---------------------------------------------------------------------------
-    def join(self, channel):
-        self._send('JOIN {0}', channel)
+    def join(self, channel, key=None):
+        if key is None:
+            self._send('JOIN {0}', channel)
+        else:
+            self._send('JOIN {0} {1}', channel, key)
 
     #---------------------------------------------------------------------------
     def part(self, channel, msg):

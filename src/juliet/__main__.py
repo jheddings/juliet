@@ -3,7 +3,7 @@
 import os
 import sys
 
-import juliet
+from juliet import Juliet
 
 from . import irc
 from . import comm
@@ -38,19 +38,39 @@ def load_config(config_file):
 ################################################################################
 ## MAIN ENTRY
 
-config_file = sys.argv[1]
+config_file = 'juliet.cfg'
+if len(sys.argv) > 2:
+    config_file = sys.argv[1]
+
 conf = load_config(config_file)
+radio_conf = conf['radio']
+irc_conf = conf['servers']
 
-jules = juliet.Juliet()
+radio = comm.RadioComm(
+    serial_port=radio_conf['port'],
+    baud_rate=radio_conf['baud']
+)
 
-client = irc.Client(nick='juliet')
-jules.attach(client)
+jules = Juliet(comm=radio)
 
-client.connect('defiant.local')
+for server_conf in irc_conf:
+    user = server_conf['username']
+    nick = server_conf['nickname']
+    name = server_conf['fullname']
+    passwd = server_conf['password']
+    host = server_conf['host']
+    port = server_conf['port']
 
-# TODO do at client.on_welcome
-client.join('#CQCQCQ')
-client.privmsg('#CQCQCQ', 'QSL?')
+    client = irc.Client(nick=nick, name=name)
+    jules.attach(client)
+
+    client.connect(host, port=port, password=passwd)
+
+    for channel in server_conf['channels']:
+        key = channel.get('key', None)
+        client.join(channel['name'], key)
 
 jules.start()
+
+radio.close()
 
