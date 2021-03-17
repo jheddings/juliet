@@ -2,15 +2,36 @@ import serial
 import unittest
 import time
 
-import juliet
-import util
+import juliet.comm
 
 ################################################################################
-class CommLoopTest(unittest.TestCase, util.InboxMixin):
+class InboxMixin(object):
+
+    inbox = None
+
+    #---------------------------------------------------------------------------
+    def recv_msg(self, radio, data):
+        if self.inbox is None:
+            self.inbox = [ data ]
+        else:
+            self.inbox.append(data)
+
+    #---------------------------------------------------------------------------
+    def check_inbox(self, *expected):
+        self.assertIsNotNone(self.inbox)
+        self.assertEqual(len(expected), len(self.inbox))
+
+        for idx in range(len(expected)):
+            expect = expected[idx]
+            msg = self.inbox[idx]
+            self.assertEqual(expect, msg)
+
+################################################################################
+class CommLoopTest(unittest.TestCase, InboxMixin):
 
     #---------------------------------------------------------------------------
     def setUp(self):
-        self.comm = juliet.CommLoop()
+        self.comm = juliet.comm.CommLoop()
         self.comm.on_recv += self.recv_msg
 
     #---------------------------------------------------------------------------
@@ -25,13 +46,13 @@ class CommLoopTest(unittest.TestCase, util.InboxMixin):
         self.check_inbox(text)
 
 ################################################################################
-class RadioCommTest(unittest.TestCase, util.InboxMixin):
+class RadioCommTest(unittest.TestCase, InboxMixin):
 
     #---------------------------------------------------------------------------
     def setUp(self):
         self.comm = serial.Serial('/dev/ttyr2', timeout=1)
 
-        self.radio = juliet.RadioComm('/dev/ptyr2')
+        self.radio = juliet.comm.RadioComm('/dev/ptyr2')
         self.radio.on_recv += self.recv_msg
 
     #---------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 
 BASEDIR ?= $(PWD)
 APPNAME ?= juliet
+SRCDIR ?= $(BASEDIR)/src/$(APPNAME)
 
 ################################################################################
 .PHONY: all
@@ -26,6 +27,7 @@ venv:
 	python3 -m venv "$(BASEDIR)"
 	bin/pip3 install -r requirements.txt
 	#TODO find a way to make this work...
+	echo "$(SRCDIR)" > lib/*/site-packages/$(APPNAME).pth
 
 ################################################################################
 .PHONY: venv-configured

@@ -3,18 +3,18 @@
 import logging
 import unittest
 
-import juliet
+import juliet.irc
 
 # keep logging output to a minumim for testing
 logging.basicConfig(level=logging.FATAL)
 
 ################################################################################
-class ClientTest(unittest.TestCase):
+class MessageParsing(unittest.TestCase):
 
     #---------------------------------------------------------------------------
     def test_BasicNickParsing(self):
         data = b':localhost NICK unittest'
-        msg = juliet.Message.parse(data)
+        msg = juliet.irc.Message.parse(data)
 
         self.assertEqual(msg.command, 'NICK')
         self.assertEqual(msg.prefix, 'localhost')
@@ -27,7 +27,7 @@ class ClientTest(unittest.TestCase):
     #---------------------------------------------------------------------------
     def test_BasicUserParsing(self):
         data = b'USER unittest * localhost :Unit Test'
-        msg = juliet.Message.parse(data)
+        msg = juliet.irc.Message.parse(data)
 
         self.assertIsNone(msg.prefix, None)
 
@@ -42,7 +42,7 @@ class ClientTest(unittest.TestCase):
     #---------------------------------------------------------------------------
     def test_BasicServerReply(self):
         data = b':localhost 002 juliet :Your host is unittest'
-        msg = juliet.Message.parse(data)
+        msg = juliet.irc.Message.parse(data)
 
         self.assertEqual(msg.prefix, 'localhost')
 
