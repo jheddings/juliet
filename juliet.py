@@ -20,7 +20,7 @@ SESSION_TIMEOUT_SEC = 90
 packed_msg_re = re.compile(r'^>>(?P<ver>[a-fA-F0-9]+):(?P<crc>[a-zA-Z0-9]+):(?P<sender>[a-zA-Z0-9~/=+_$@#*&%!|-]+)?:(?P<time>[0-9]{14})?:(?P<msg>.+)(?!\\):(?P<sig>[a-zA-Z0-9]+)?<<$')
 
 regex_eol = re.compile(rb'\r?\n')
-regex_irc_message = re.compile(rb'^(:(?P<prefix>[^:\s]+)\s+)?(?P<command>([a-zA-Z]+|[0-9]+))\s*(?P<params>.+)?$')
+regex_irc_message = re.compile(rb'^^(:(?P<prefix>[^:\s]+)\s+)?((?P<command>[a-zA-Z]+)|(?P<reply>[0-9]+))\s*(?P<params>.+)?$')
 
 ################################################################################
 safe_filename_chars = '.-_ '
@@ -119,7 +119,10 @@ class Message(object):
         if match is None or match is False:
             return None
 
-        msg = Message(match.group('command').decode('utf-8').upper())
+        # XXX we may need to handle reply's differently in the future...
+        cmd = match.group('reply') or match.group('command')
+
+        msg = Message(cmd.decode('utf-8').upper())
 
         if match.group('prefix') is not None:
             msg.prefix = match.group('prefix').decode('utf-8')
@@ -164,6 +167,7 @@ class Message(object):
 #   on_notice => func(client, sender, recip, msg)
 #   on_join => func(client, channel)
 #   on_part => func(client, channel, msg)
+#   on_kill => func(client, source, remarks)
 class Client():
 
     #---------------------------------------------------------------------------
@@ -173,6 +177,7 @@ class Client():
         self.nickname = nick
         self.fullname = name
 
+        self.active = False
         self.buffer = b''
         self.last_contact = None
 
@@ -185,6 +190,7 @@ class Client():
         # initialize event handlers
         self.on_connect = Event()
         self.on_welcome = Event()
+        self.on_disconnect = Event()
 
         self.on_join = Event()
         self.on_notice = Event()
@@ -199,7 +205,7 @@ class Client():
     #---------------------------------------------------------------------------
     @property
     def is_active(self):
-        return (self.daemon is not None and self.socket is not None)
+        return (self.active and self.daemon is not None and self.socket is not None)
 
     #---------------------------------------------------------------------------
     def connect(self, server, port=6667, passwd=None):
@@ -208,17 +214,31 @@ class Client():
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((server, port))
 
-        # startup the daemon if configured...
-        self.daemon.start()
-
         if passwd is not None:
             self._send('PASS {0}', passwd)
 
         self._send('NICK {0}', self.nickname)
         self._send('USER {0} - {1}', self.nickname, self.fullname)
 
+        # startup the daemon if configured...
+        self.daemon.start()
+
         # notify on_connect event handlers
         self.on_connect(self)
+
+        self.logger.info('Connected to IRC server -- %s:%d', server, port)
+
+    #---------------------------------------------------------------------------
+    def disconnect(self):
+        self.logger.info('Closing server connection')
+
+        if self.socket:
+            self.quit()
+
+        self.daemon.join()
+        self.socket = None
+
+        self.on_disconnect(self)
 
     #---------------------------------------------------------------------------
     def join(self, channel):
@@ -257,9 +277,11 @@ class Client():
         self.socket.close()
         self.logger.debug('connection closed')
 
+        self.socket = None
+
     #---------------------------------------------------------------------------
     def _on_ping(self, client, origin):
-        client._send('PONG {} :{0}', client.nickname, origin)
+        client._send('PONG {0} :{1}', client.nickname, origin)
 
     #---------------------------------------------------------------------------
     def _send(self, msg, *args):
@@ -276,26 +298,42 @@ class Client():
         self.logger.debug('incoming message -- %s', msg)
 
         if msg.command == '001':
+            self.logger.debug('received welcome -- %s', msg.remarks)
             self.on_welcome(self, msg.remarks)
 
         elif msg.command == 'PING':
+            self.logger.debug('received PING -- %s', msg.remarks)
             self.on_ping(self, msg.remarks)
 
         elif msg.command == 'PRIVMSG':
-            self.on_privmsg(self, origin, recip, txt)
+            self.logger.debug('received PRIVMSG [%s] -- %s', msg.prefix, msg.remarks[:10])
+            recip = msg.params[0]
+            self.on_privmsg(self, msg.prefix, recip, msg.remarks)
 
         elif msg.command == 'NOTICE':
-            self.on_notice(self, origin, recip, txt)
+            self.logger.debug('received NOTICE [%s] -- %s', msg.prefix, msg.remarks[:10])
+            recip = msg.params[0]
+            self.on_notice(self, msg.prefix, recip, msg.remarks)
 
         elif msg.command == 'JOIN':
+            channel = msg.params[0]
+            self.logger.debug('JOIN channel %s', channel)
             self.on_join(self, channel)
 
         elif msg.command == 'PART':
-            self.on_part(self, channel, txt)
+            channel = msg.params[0]
+            self.logger.debug('PART channel %s', channel)
+            self.on_part(self, channel, msg.remarks)
+
+        elif msg.command == 'KILL':
+            self.logger.debug('killed by %s -- %s', msg.prefix, msg.remarks)
+            self.on_kill(self, msg.prefix, msg.remarks)
 
     #---------------------------------------------------------------------------
     def _thread_worker(self):
         self.logger.debug(': begin comm loop')
+
+        self.active = True
 
         while self.socket:
             data = None
@@ -304,7 +342,7 @@ class Client():
                 data = self.socket.recv(SOCKET_BUFFER_SIZE)
 
                 if not data:
-                    self.logger.debug('socket close by remote')
+                    self.logger.debug('socket closed by remote')
                     break
 
             except socket.error as err:
@@ -316,6 +354,8 @@ class Client():
 
             self.buffer += data
             self._parse_buffer()
+
+        self.active = False
 
     #---------------------------------------------------------------------------
     def _parse_buffer(self):
@@ -478,6 +518,7 @@ class Juliet(object):
     #---------------------------------------------------------------------------
     def __init__(self):
         self.clients = list()
+        self.active = False
         self.logger = logging.getLogger('juliet.Juliet')
 
     #---------------------------------------------------------------------------
@@ -485,15 +526,19 @@ class Juliet(object):
         if client in self.clients:
             raise ValueError('duplicate client')
 
-        client.on_quit += self._on_client_quit
-        self.clients.append(client)
+        client.on_connect += self._on_client_connect
+        client.on_disconnect += self._on_client_disconnect
+
+        self.logger.debug('client [%s] attached', id(client))
 
     #---------------------------------------------------------------------------
     def detach(self, client):
         if client not in self.clients:
             raise ValueError('no such client')
 
-        self.clients.remove(client)
+        client.disconnect()
+
+        self.logger.debug('client [%s] detached', id(client))
 
     #---------------------------------------------------------------------------
     def start(self):
@@ -504,6 +549,10 @@ class Juliet(object):
             self._run()
         except KeyboardInterrupt:
             self.logger.info('Canceled by user')
+
+        # clean up remaining clients...
+        for client in self.clients:
+            self.detach(client)
 
         self.active = False
         self.logger.debug('exiting main loop')
@@ -524,7 +573,7 @@ class Juliet(object):
                 total_sec = last_contact.total_seconds()
 
                 self.logger.debug(
-                    'client [%s] last contact: %s sec',
+                    'client [%s] last contact: %s',
                     id(client), last_contact
                 )
 
@@ -541,8 +590,12 @@ class Juliet(object):
                     client.ping()
 
     #---------------------------------------------------------------------------
-    def _on_client_quit(self, client, reason):
-        self.detach(client)
+    def _on_client_connect(self, client):
+        self.clients.append(client)
+
+    #---------------------------------------------------------------------------
+    def _on_client_disconnect(self, client):
+        self.clients.remove(client)
 
 ################################################################################
 def load_config(config_file):
@@ -585,7 +638,9 @@ if __name__ == '__main__':
 
     client.connect('defiant.local')
 
-    jules.start()
+    # TODO do at client.on_welcome
+    client.join('#CQCQCQ')
+    client.privmsg('#CQCQCQ', 'QSL?')
 
-    client.quit()
+    jules.start()
 
