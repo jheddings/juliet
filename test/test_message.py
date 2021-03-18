@@ -13,6 +13,11 @@ logging.basicConfig(level=logging.FATAL)
 class MessageTest(unittest.TestCase):
 
     #---------------------------------------------------------------------------
+    def test_PrintableCharacters(self):
+        text = string.printable
+        self.check_standard_text_msg(text)
+
+    #---------------------------------------------------------------------------
     def test_StandardASCII(self):
         text = ''.join([chr(ch) for ch in range(32, 128)])
         self.check_standard_text_msg(text)
@@ -47,7 +52,7 @@ class MessageTest(unittest.TestCase):
         text = 'Lorem ipsum dolor sit amet:'
         self.check_standard_text_msg(text)
 
-        text = 'Lorem ipsum dolor sit amet<<'
+        text = 'Lorem ipsum dolor sit :amet:<<'
         self.check_standard_text_msg(text)
 
         text = '<<Lorem ipsum dolor sit amet>>'

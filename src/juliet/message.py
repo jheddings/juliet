@@ -67,6 +67,28 @@ def make_safe_filename(unsafe):
     return safe.strip()
 
 ################################################################################
+# make text safe for transmitting (mostly protocol chracters)...
+
+char_entities = {
+    ':': '%3A',
+    '>': '%3E',
+    '<': '%3C',
+    '\r': '%0D',
+    '\n': '%0A'
+}
+
+def char_escape(text):
+    return ''.join(char_entities.get(ch, ch) for ch in text)
+
+# XXX as a shortcut use standard decode from urllib...  we use the
+# above table to keep messages short and easier to read in plain text
+
+import urllib.parse
+
+def char_unescape(text):
+    return urllib.parse.unquote(text)
+
+################################################################################
 class Message(object):
 
     version = None
@@ -130,8 +152,7 @@ class Message(object):
 
         match = packed_msg_re.match(text)
         if match is None or match is False:
-            print('NO MATCH')
-            return None
+            raise ValueError('invalid message data')
 
         sender = match.group('sender')
         content = match.group('msg')
@@ -189,11 +210,11 @@ class TextMessage(Message):
 
     #---------------------------------------------------------------------------
     def pack_content(self):
-        return self.content.replace(':', '\\:')
+        return char_escape(self.content)
 
     #---------------------------------------------------------------------------
     def unpack_content(self):
-        self.content = self.content.replace('\\:', ':')
+        self.content = char_unescape(self.content)
 
 ################################################################################
 class CompressedTextMessage(CompressedMessage):
@@ -222,11 +243,11 @@ class ChannelMessage(TextMessage):
     #---------------------------------------------------------------------------
     def pack_content(self):
         text = self.channel + ' ' + self.content
-        return text.replace(':', '\\:')
+        return char_escape(text)
 
     #---------------------------------------------------------------------------
     def unpack_content(self):
-        text = self.content.replace('\\:', ':')
+        text = char_unescape(self.content)
         self.channel, self.content = text.split(' ', 1)
 
 #######################################################
