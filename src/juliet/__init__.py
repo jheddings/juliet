@@ -71,6 +71,15 @@ class Juliet(irc.bot.SingleServerIRCBot):
     def _radio_recv(self, radio, data):
         self.logger.debug('[radio] << %s', data)
 
+        # TODO process multiple messages
+
+        msg = ChannelMessage.unpack(data)
+
+        if msg is None:
+            self.logger.debug('invalid message')
+        else:
+            self.connection.privmsg(msg.channel, f'[{msg.sender}] {msg.content}')
+
     #---------------------------------------------------------------------------
     def _radio_xmit(self, radio, data):
         self.logger.debug('[radio] >> %s', data)
@@ -104,5 +113,5 @@ class Juliet(irc.bot.SingleServerIRCBot):
             conn.privmsg(sender, 'Your message has been sent!')
 
         else:
-            conn.notice(sender, f'Sorry, I don\'t understand "{cmd}"')
+            conn.notice(sender, f'Sorry, I don\'t understand "{cmd} 😞"')
 
