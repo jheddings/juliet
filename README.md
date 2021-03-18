@@ -1,26 +1,27 @@
 # juliet #
 
-A simple 2-way serial text client for D-STAR / DMR messaging.  The application itself is
-unaware of the underlying transport mechanism, instead juliet relies on data exchanged
-over a standard serial port.  Any radio capable of exchanging data over a standard serial
-cable _should_ work.
+Juliet is an IRC bot that exchanges channel messages over a radio network.  The intended
+use for this bot is to enable communications by amateur radio operators when standard
+infrastrastructure is not available.  While it was designed with D-STAR in mind, any
+radio capable of exchanging data over a standard serial port _should_ work.
 
 Written by W0JHX.  Tested using Icom 92AD with the standard programming cable.
 
 ## Usage ##
 
 ```
-juliet.py
+python3 -m juliet
 ```
 
-- Simply connect to your radio's serial interface (or programming cable).
-- Run the `juliet.py` script, optionally specifying a configuration file.
+- Connect to your radio's serial interface (or programming cable).
+- Create a configurtion file (see Configuration below)
+- Run the `juliet` module, optionally specifying a configuration file.
 - Connect to the computer in a standard browser.
 
 Messages will be displayed automatically when they are recieved.
 
-Outgoing messages will be rate limited to 120 chars per second.  Larger messages will be
-split and assembled when received.  This is primarily to help avoid frequency congenstion.
+Outgoing messages will be rate limited to 1 line per second.  This is primarily to help
+avoid frequency congenstion.
 
 ## Configuration ##
 
@@ -75,5 +76,7 @@ The `version` field denotes both message structure as well as content type.
 
 * 0 - uncompressed text
 * 1 - compressed & base-64 encoded text
+* 3 - channel text
+* 7 - file message - currently unused, but here for completeness
 
 _-73_

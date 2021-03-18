@@ -4,6 +4,7 @@ import string
 import os
 
 from juliet.message import TextMessage, CompressedTextMessage, ChannelMessage
+from juliet.message import FileMessage
 
 # keep logging output to a minumim for testing
 logging.basicConfig(level=logging.FATAL)
@@ -78,6 +79,20 @@ class MessageTest(unittest.TestCase):
         self.assertEqual(copy.content, 'hello world')
 
         self.assertEqual(orig, copy)
+
+    #---------------------------------------------------------------------------
+    def test_FileMessage(self):
+        with open(__file__) as fp:
+            content = fp.read()
+
+        orig = FileMessage(content=content)
+        packed = orig.pack()
+        copy = FileMessage.unpack(packed)
+
+        self.assertEqual(orig, copy)
+
+        self.assertEqual(orig.content, content)
+        self.assertEqual(content, copy.content)
 
     #---------------------------------------------------------------------------
     def check_standard_text_msg(self, text):

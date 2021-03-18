@@ -6,6 +6,7 @@
 import re
 import zlib
 import base64
+import mimetypes
 
 from datetime import datetime, timezone
 
@@ -13,10 +14,12 @@ packed_msg_re = re.compile(r'^>>(?P<ver>[a-fA-F0-9]+):(?P<crc>[a-zA-Z0-9]+):(?P<
 
 ################################################################################
 def format_timestamp(tstamp):
+    tstamp = tstamp.astimezone(tz=timezone.utc)
     return tstamp.strftime('%Y%m%d%H%M%S')
 
 def parse_timestamp(string):
-    return datetime.strptime(string, '%Y%m%d%H%M%S')
+    tstamp = datetime.strptime(string, '%Y%m%d%H%M%S')
+    return tstamp.replace(tzinfo=timezone.utc)
 
 ################################################################################
 # modified from https://gist.github.com/oysstu/68072c44c02879a2abf94ef350d1c7c6
@@ -51,6 +54,17 @@ def checksum(*parts):
         crc = crc16(part, crc)
 
     return crc
+
+################################################################################
+safe_filename_chars = '.-_ '
+
+def make_safe_filename(unsafe):
+    if unsafe is None or len(unsafe) == 0:
+        return None
+
+    safe = ''.join([c for c in unsafe if c.isalnum() or c in safe_filename_chars])
+
+    return safe.strip()
 
 ################################################################################
 class Message(object):
@@ -101,7 +115,7 @@ class Message(object):
         return data
 
     #---------------------------------------------------------------------------
-    def unpack(data):
+    def unpack(data, verify_crc=True):
         if data is None or len(data) == 0:
             return None
 
@@ -119,7 +133,10 @@ class Message(object):
             print('NO MATCH')
             return None
 
+        sender = match.group('sender')
         content = match.group('msg')
+        tstamp = match.group('time')
+        sig = match.group('sig')
         version = int(match.group('ver'), 16)
 
         if version == TextMessage.version:
@@ -128,18 +145,15 @@ class Message(object):
             msg = CompressedTextMessage(content)
         elif version == ChannelMessage.version:
             msg = ChannelMessage(content)
+        elif version == FileMessage.version:
+            msg = FileMessage(content)
         else:
             raise Exception('unsupported version')
 
-        checksum = int(match.group('crc'), 16)
-        # TODO confirm checksum - should we allow "invalid" messages?
+        msg.timestamp = parse_timestamp(tstamp)
 
-        # timestamps are in UTC
-        tstamp = parse_timestamp(match.group('time'))
-        tstamp = tstamp.replace(tzinfo=timezone.utc)
-
-        msg.sender = match.group('sender')
-        msg.signature = match.group('sig')
+        msg.sender = sender
+        msg.signature = sig
 
         msg.unpack_content()
 
@@ -214,4 +228,37 @@ class ChannelMessage(TextMessage):
     def unpack_content(self):
         text = self.content.replace('\\:', ':')
         self.channel, self.content = text.split(' ', 1)
+
+#######################################################
+class FileMessage(CompressedMessage):
+
+    version = 7
+    filename = None
+    mimetype = None
+
+    #---------------------------------------------------------------------------
+    def __init__(self, content, filename=None, mimetype=None, sender=None, signature=None, timestamp=None):
+        CompressedMessage.__init__(self, content, sender, signature, timestamp)
+
+        self.filename = make_safe_filename(filename)
+
+        if mimetype is None and filename is not None:
+            guess = mimetypes.guess_type(filename)
+            self.mimetype = guess[0] or 'application/octet-stream'
+        else:
+            self.mimetype = mimetype
+
+    #---------------------------------------------------------------------------
+    def pack_content(self):
+        filename = make_safe_filename(self.filename) or ''
+        mimetype = self.mimetype or ''
+        compressed = self.compress(self.content)
+        return filename + '|' + mimetype + '|' + compressed
+
+    #---------------------------------------------------------------------------
+    def unpack_content(self):
+        (filename, mimetype, compressed) = self.content.split('|', 2)
+        self.filename = make_safe_filename(filename)
+        self.mimetype = mimetype if len(mimetype) > 0 else None
+        self.content = self.decompress(compressed)
 
