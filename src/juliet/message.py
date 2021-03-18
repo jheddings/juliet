@@ -51,6 +51,9 @@ def checksum(*parts):
         if part is None:
             continue
 
+        if len(part) == 0:
+            continue
+
         crc = crc16(part, crc)
 
     return crc
@@ -119,7 +122,7 @@ class Message(object):
 
     #---------------------------------------------------------------------------
     # confirm the integrity of the message
-    def is_valid(self):
+    def confirm(self, crc):
         return None
 
     #---------------------------------------------------------------------------
@@ -128,13 +131,11 @@ class Message(object):
         tstamp = format_timestamp(self.timestamp)
         sig = '' if self.signature is None else self.signature
         content = self.pack_content()
-
         crc = checksum(sender, tstamp, content, sig)
 
         text = f'>>{self.version:X}:{crc:04X}:{sender}:{tstamp}:{content}:{sig}<<'
-        data = bytes(text, 'utf-8')
 
-        return data
+        return bytes(text, 'utf-8')
 
     #---------------------------------------------------------------------------
     def unpack(data, verify_crc=True):
@@ -143,7 +144,6 @@ class Message(object):
 
         # XXX prefer to data.split(b':') and work with parts
         # XXX - need to check for header and footer
-        # XXX - how to handle : in the content?
 
         try:
             text = str(data, 'utf-8')
@@ -158,6 +158,14 @@ class Message(object):
         content = match.group('msg')
         tstamp = match.group('time')
         sig = match.group('sig')
+
+        if verify_crc:
+            crc_orig = int(match.group('crc'), 16)
+            crc_calc = checksum(sender, tstamp, content, sig)
+
+            if crc_orig != crc_calc:
+                raise ValueError(f'checksum does not match')
+
         version = int(match.group('ver'), 16)
 
         if version == TextMessage.version:
@@ -171,10 +179,9 @@ class Message(object):
         else:
             raise Exception('unsupported version')
 
-        msg.timestamp = parse_timestamp(tstamp)
-
         msg.sender = sender
         msg.signature = sig
+        msg.timestamp = parse_timestamp(tstamp)
 
         msg.unpack_content()
 
