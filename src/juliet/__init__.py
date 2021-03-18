@@ -18,8 +18,10 @@ from .message import Message, TextMessage, ChannelMessage
 class Juliet(irc.bot.SingleServerIRCBot):
 
     #---------------------------------------------------------------------------
-    def __init__(self, name, radio, server, port=6667):
+    def __init__(self, name, radio, server, port=6667, channels=None):
         irc.bot.SingleServerIRCBot.__init__(self, [(server, port)], name, name)
+
+        self.auto_channels = channels
 
         self.radio = radio
         self.logger = logging.getLogger('juliet.RadioBot')
@@ -38,8 +40,11 @@ class Juliet(irc.bot.SingleServerIRCBot):
     def on_welcome(self, conn, event):
         self.logger.info('Juliet online: [%s]', conn.get_nickname())
 
-        # TODO join default channels
-        #conn.join(self.channel)
+        if self.auto_channels:
+            for channel in self.auto_channels:
+                name = channel['name']
+                key = channel['key'] if 'key' in channel else None
+                conn.join(name, key)
 
     #---------------------------------------------------------------------------
     def on_privmsg(self, conn, event):

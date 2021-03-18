@@ -49,6 +49,7 @@ conf = load_config(config_file)
 radio_conf = conf['radio']
 server_conf = conf['server']
 
+channels = server_conf['channels'] if 'channels' in server_conf else None
 
 radio = radio.RadioComm(
     serial_port=radio_conf['port'],
@@ -59,7 +60,13 @@ nick = server_conf['nickname']
 host = server_conf['host']
 port = server_conf['port']
 
-jules = Juliet(name=nick, server=host, port=port, radio=radio)
+jules = Juliet(
+    name=nick,
+    server=host,
+    port=port,
+    radio=radio,
+    channels=channels
+)
 
 #for channel in server_conf['channels']:
 #    key = channel.get('key', None)

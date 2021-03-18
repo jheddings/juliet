@@ -10,7 +10,7 @@ Written by W0JHX.  Tested using Icom 92AD with the standard programming cable.
 ## Usage ##
 
 ```
-python3 -m juliet
+python3 -m juliet juliet.cfg
 ```
 
 - Find or setup an IRC server (`ngircd` is a good one).
