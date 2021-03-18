@@ -1,3 +1,7 @@
+##
+# juliet - Copyright (c) Jason Heddings. All rights reserved.
+# Licensed under the MIT License. See LICENSE for full terms.
+##
 
 ################################################################################
 # modified from https://stackoverflow.com/a/2022629/197772

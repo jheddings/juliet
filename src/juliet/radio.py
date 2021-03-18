@@ -1,83 +1,38 @@
-# juliet - an IRC bot for relaying to radio networks
+##
+# juliet - Copyright (c) Jason Heddings. All rights reserved.
+# Licensed under the MIT License. See LICENSE for full terms.
+##
 
-import re
 import queue
 import threading
 import time
 import logging
 import serial
 
-from datetime import datetime, timezone
-
 from .event import Event
 
-packed_msg_re = re.compile(r'^>>(?P<ver>[a-fA-F0-9]+):(?P<crc>[a-zA-Z0-9]+):(?P<sender>[a-zA-Z0-9~/=+_$@#*&%!|-]+)?:(?P<time>[0-9]{14})?:(?P<msg>.+)(?!\\):(?P<sig>[a-zA-Z0-9]+)?<<$')
-
 ################################################################################
-safe_filename_chars = '.-_ '
+class Station(object):
 
-def make_safe_filename(unsafe):
-    if unsafe is None or len(unsafe) == 0:
-        return None
-
-    safe = ''.join([c for c in unsafe if c.isalnum() or c in safe_filename_chars])
-
-    return safe.strip()
-
-################################################################################
-def format_timestamp(tstamp):
-    return tstamp.strftime('%Y%m%d%H%M%S')
-
-################################################################################
-def parse_timestamp(string):
-    return datetime.strptime(string, '%Y%m%d%H%M%S')
-
-################################################################################
-# modified from https://gist.github.com/oysstu/68072c44c02879a2abf94ef350d1c7c6
-def crc16(data, crc=0xFFFF, poly=0x1021):
-    if isinstance(data, str):
-        data = bytes(data, 'utf-8')
-
-    data = bytearray(data)
-
-    for b in data:
-        cur_byte = 0xFF & b
-        for _ in range(0, 8):
-            if (crc & 0x0001) ^ (cur_byte & 0x0001):
-                crc = (crc >> 1) ^ poly
-            else:
-                crc >>= 1
-            cur_byte >>= 1
-
-    crc = (~crc & 0xFFFF)
-    crc = (crc << 8) | ((crc >> 8) & 0xFF)
-
-    return crc & 0xFFFF
-
-################################################################################
-def checksum(*parts):
-    crc = 0xFFFF
-
-    for part in parts:
-        if part is None:
-            continue
-
-        crc = crc16(part, crc)
-
-    return crc
+    #---------------------------------------------------------------------------
+    def __init__(self, name):
+        # TODO validate chars in name
+        self.name = name
 
 ################################################################################
 # Events => Handler Function
 #   on_xmit => func(radio, data)
 #   on_recv => func(radio, data)
-class CommBase(object):
+class RadioBase(object):
 
     #---------------------------------------------------------------------------
-    def __init__(self):
+    def __init__(self, station):
+        self.station = station
+
         self.on_xmit = Event()
         self.on_recv = Event()
 
-        self.logger = logging.getLogger('juliet.CommBase')
+        self.logger = logging.getLogger('juliet.comm.RadioBase')
 
     #---------------------------------------------------------------------------
     def send(self, data): pass
@@ -86,13 +41,13 @@ class CommBase(object):
     def close(self): pass
 
 ################################################################################
-class CommLoop(CommBase):
+class RadioLoop(RadioBase):
 
     #---------------------------------------------------------------------------
-    def __init__(self):
-        CommBase.__init__(self)
+    def __init__(self, station):
+        RadioBase.__init__(self, station)
 
-        self.logger = logging.getLogger('juliet.CommLoop')
+        self.logger = logging.getLogger('juliet.comm.RadioLoop')
 
     #---------------------------------------------------------------------------
     def send(self, data):
@@ -101,13 +56,13 @@ class CommLoop(CommBase):
         self.on_recv(self, data)
 
 ################################################################################
-class RadioComm(CommBase):
+class RadioComm(RadioBase):
 
     #---------------------------------------------------------------------------
-    def __init__(self, serial_port, baud_rate=9600):
-        CommBase.__init__(self)
+    def __init__(self, station, serial_port, baud_rate=9600):
+        RadioBase.__init__(self, station)
 
-        self.logger = logging.getLogger('juliet.RadioComm')
+        self.logger = logging.getLogger('juliet.comm.RadioComm')
         self.logger.debug('opening radio on %s', serial_port)
 
         self.comm = serial.Serial(serial_port, baud_rate, timeout=1)

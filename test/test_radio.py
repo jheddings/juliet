@@ -2,7 +2,7 @@ import serial
 import unittest
 import time
 
-import juliet.comm
+import juliet.radio
 
 ################################################################################
 class InboxMixin(object):
@@ -27,22 +27,23 @@ class InboxMixin(object):
             self.assertEqual(expect, msg)
 
 ################################################################################
-class CommLoopTest(unittest.TestCase, InboxMixin):
+class RadioLoopTest(unittest.TestCase, InboxMixin):
 
     #---------------------------------------------------------------------------
     def setUp(self):
-        self.comm = juliet.comm.CommLoop()
-        self.comm.on_recv += self.recv_msg
+        station = juliet.radio.Station('unittest')
+        self.radio = juliet.radio.RadioLoop(station)
+        self.radio.on_recv += self.recv_msg
 
     #---------------------------------------------------------------------------
     def tearDown(self):
-        self.comm.close()
+        self.radio.close()
 
     #---------------------------------------------------------------------------
     def test_BasicReadTest(self):
         self.inbox = None
         text = 'hello world!'
-        self.comm.send(text)
+        self.radio.send(text)
         self.check_inbox(text)
 
 ################################################################################
@@ -50,9 +51,11 @@ class RadioCommTest(unittest.TestCase, InboxMixin):
 
     #---------------------------------------------------------------------------
     def setUp(self):
+        station = juliet.radio.Station('unittest')
+
         self.comm = serial.Serial('/dev/ttyr2', timeout=1)
 
-        self.radio = juliet.comm.RadioComm('/dev/ptyr2')
+        self.radio = juliet.radio.RadioComm(station, '/dev/ptyr2')
         self.radio.on_recv += self.recv_msg
 
     #---------------------------------------------------------------------------

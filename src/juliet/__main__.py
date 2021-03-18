@@ -1,4 +1,7 @@
-# main entry for juliet
+##
+# juliet - Copyright (c) Jason Heddings. All rights reserved.
+# Licensed under the MIT License. See LICENSE for full terms.
+##
 
 import os
 import sys
@@ -6,7 +9,7 @@ import sys
 from juliet import Juliet
 
 from . import irc
-from . import comm
+from . import radio
 
 ################################################################################
 def load_config(config_file):
@@ -43,34 +46,34 @@ if len(sys.argv) > 2:
     config_file = sys.argv[1]
 
 conf = load_config(config_file)
+station_conf = conf['station']
 radio_conf = conf['radio']
-irc_conf = conf['servers']
+server_conf = conf['server']
 
-radio = comm.RadioComm(
+station = radio.Station(
+    station_conf['name']
+)
+
+radio = radio.RadioComm(
+    station=station,
     serial_port=radio_conf['port'],
     baud_rate=radio_conf['baud']
 )
 
-jules = Juliet(comm=radio)
+nick = server_conf['nickname']
+host = server_conf['host']
+port = server_conf['port']
 
-for server_conf in irc_conf:
-    user = server_conf['username']
-    nick = server_conf['nickname']
-    name = server_conf['fullname']
-    passwd = server_conf['password']
-    host = server_conf['host']
-    port = server_conf['port']
+jules = Juliet(name=nick, server=host, port=port, radio=radio)
 
-    client = irc.Client(nick=nick, name=name)
-    jules.attach(client)
+#for channel in server_conf['channels']:
+#    key = channel.get('key', None)
+#    jules..join(channel['name'], key)
 
-    client.connect(host, port=port, password=passwd)
-
-    for channel in server_conf['channels']:
-        key = channel.get('key', None)
-        client.join(channel['name'], key)
-
-jules.start()
+try:
+    jules.start()
+except KeyboardInterrupt:
+    jules.disconnect('offline')
 
 radio.close()
 
