@@ -31,8 +31,7 @@ class RadioLoopTest(unittest.TestCase, InboxMixin):
 
     #---------------------------------------------------------------------------
     def setUp(self):
-        station = juliet.radio.Station('unittest')
-        self.radio = juliet.radio.RadioLoop(station)
+        self.radio = juliet.radio.RadioLoop()
         self.radio.on_recv += self.recv_msg
 
     #---------------------------------------------------------------------------
@@ -51,11 +50,9 @@ class RadioCommTest(unittest.TestCase, InboxMixin):
 
     #---------------------------------------------------------------------------
     def setUp(self):
-        station = juliet.radio.Station('unittest')
-
         self.comm = serial.Serial('/dev/ttyr2', timeout=1)
 
-        self.radio = juliet.radio.RadioComm(station, '/dev/ptyr2')
+        self.radio = juliet.radio.RadioComm('/dev/ptyr2')
         self.radio.on_recv += self.recv_msg
 
     #---------------------------------------------------------------------------
