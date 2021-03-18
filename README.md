@@ -13,12 +13,12 @@ Written by W0JHX.  Tested using Icom 92AD with the standard programming cable.
 python3 -m juliet
 ```
 
+- Find or setup an IRC server (`ngircd` is a good one).
 - Connect to your radio's serial interface (or programming cable).
-- Create a configurtion file (see Configuration below)
-- Run the `juliet` module, optionally specifying a configuration file.
-- Connect to the computer in a standard browser.
-
-Messages will be displayed automatically when they are recieved.
+- Create a configuration file (see Configuration below).
+- Run the `juliet` module using local config.
+- Connect to the server using any IRC client of your choice.
+- Channels where `juliet` has joined will be relayed over the radio!
 
 Outgoing messages will be rate limited to 1 line per second.  This is primarily to help
 avoid frequency congenstion.
