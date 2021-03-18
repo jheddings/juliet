@@ -147,7 +147,7 @@ class Message(object):
 
         try:
             text = str(data, 'utf-8')
-        except UnicodeDecodeError as ude:
+        except UnicodeDecodeError:
             return None
 
         match = packed_msg_re.match(text)

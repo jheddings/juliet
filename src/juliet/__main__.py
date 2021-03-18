@@ -42,20 +42,15 @@ def load_config(config_file):
 ## MAIN ENTRY
 
 config_file = 'juliet.cfg'
-if len(sys.argv) > 2:
+if len(sys.argv) > 1:
     config_file = sys.argv[1]
 
 conf = load_config(config_file)
-station_conf = conf['station']
 radio_conf = conf['radio']
 server_conf = conf['server']
 
-station = radio.Station(
-    station_conf['name']
-)
 
 radio = radio.RadioComm(
-    station=station,
     serial_port=radio_conf['port'],
     baud_rate=radio_conf['baud']
 )

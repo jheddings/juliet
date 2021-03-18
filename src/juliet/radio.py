@@ -12,23 +12,13 @@ import serial
 from .event import Event
 
 ################################################################################
-class Station(object):
-
-    #---------------------------------------------------------------------------
-    def __init__(self, name):
-        # TODO validate chars in name
-        self.name = name
-
-################################################################################
 # Events => Handler Function
 #   on_xmit => func(radio, data)
 #   on_recv => func(radio, data)
 class RadioBase(object):
 
     #---------------------------------------------------------------------------
-    def __init__(self, station):
-        self.station = station
-
+    def __init__(self):
         self.on_xmit = Event()
         self.on_recv = Event()
 
@@ -44,8 +34,8 @@ class RadioBase(object):
 class RadioLoop(RadioBase):
 
     #---------------------------------------------------------------------------
-    def __init__(self, station):
-        RadioBase.__init__(self, station)
+    def __init__(self):
+        RadioBase.__init__(self)
 
         self.logger = logging.getLogger('juliet.comm.RadioLoop')
 
@@ -59,8 +49,8 @@ class RadioLoop(RadioBase):
 class RadioComm(RadioBase):
 
     #---------------------------------------------------------------------------
-    def __init__(self, station, serial_port, baud_rate=9600):
-        RadioBase.__init__(self, station)
+    def __init__(self, serial_port, baud_rate=9600):
+        RadioBase.__init__(self)
 
         self.logger = logging.getLogger('juliet.comm.RadioComm')
         self.logger.debug('opening radio on %s', serial_port)

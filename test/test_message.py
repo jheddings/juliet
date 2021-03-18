@@ -41,6 +41,9 @@ class MessageTest(unittest.TestCase):
         text = 'مرحبا بالعالم'
         self.check_standard_text_msg(text)
 
+        text = '😀🙃😳🤔🤐🤬👻☠☃💯'
+        self.check_standard_text_msg(text)
+
     #---------------------------------------------------------------------------
     def test_SpecialProtocolCharacters(self):
         text = 'Lorem ipsum:dolorsit:amet'

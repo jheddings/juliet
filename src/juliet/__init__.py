@@ -12,7 +12,7 @@ import irc.bot
 from datetime import datetime, timezone
 
 from .event import Event
-from .message import TextMessage, ChannelMessage
+from .message import Message, TextMessage, ChannelMessage
 
 ################################################################################
 class Juliet(irc.bot.SingleServerIRCBot):
@@ -60,7 +60,7 @@ class Juliet(irc.bot.SingleServerIRCBot):
 
         text = event.arguments[0]
         channel = event.target
-        sender = self.radio.station.name
+        sender = event.source.nick
 
         msg = ChannelMessage(content=text, channel=channel, sender=sender)
 
@@ -71,14 +71,18 @@ class Juliet(irc.bot.SingleServerIRCBot):
     def _radio_recv(self, radio, data):
         self.logger.debug('[radio] << %s', data)
 
-        # TODO process multiple messages
+        # TODO process multiple messages (as a stream)
 
-        msg = ChannelMessage.unpack(data)
+        msg = Message.unpack(data)
 
-        if msg is None:
-            self.logger.debug('invalid message')
+        if isinstance(msg, ChannelMessage):
+            if msg.channel in self.channels:
+                self.connection.notice(msg.channel, f'[{msg.sender}] {msg.content}')
+            else:
+                self.logger.debug('not on channel %s; discarding', msg.channel)
+
         else:
-            self.connection.privmsg(msg.channel, f'[{msg.sender}] {msg.content}')
+            self.logger.debug('unsupported message %s; discarding', type(msg))
 
     #---------------------------------------------------------------------------
     def _radio_xmit(self, radio, data):
@@ -106,7 +110,6 @@ class Juliet(irc.bot.SingleServerIRCBot):
 
         elif cmd == 'xmit':
             text = ' '.join(params)
-            sender = self.radio.station.name
             msg = TextMessage(content=text, sender=sender)
             data = msg.pack()
             self.radio.send(data)
