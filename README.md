@@ -7,6 +7,22 @@ radio capable of exchanging data over a standard serial port _should_ work.
 
 Written by W0JHX.  Tested using Icom 92AD with the standard programming cable.
 
+![Chat Session](docs/hello_world.png)
+
+## Setup ##
+
+At the moment, there is no installer for `juliet`, simply download the repository to an
+appropriate folder on your computer.
+
+Before using `juliet`, you will need to install the modules from `requirements.txt`:
+
+```
+python3 -m install -r requirements.txt
+```
+
+*NOTE* Advanced users may with to do this using `venv` to avoid changes in their
+system libraries.
+
 ## Usage ##
 
 ```
@@ -25,11 +41,8 @@ avoid frequency congenstion.
 
 ## Configuration ##
 
-TODO - more information here...
-
-### Logging ###
-
-Enable logging to help with troubleshooting.
+This documentation is missing...  For now, please use the sample `juliet.cfg` file to
+get started.
 
 ## Technical Info ##
 
@@ -78,5 +91,10 @@ The `version` field denotes both message structure as well as content type.
 * 1 - compressed & base-64 encoded text
 * 3 - channel text
 * 7 - file message - currently unused, but here for completeness
+
+## Contributions ##
+
+If you are interested in contributing to `juliet`, I would welcome the help!  Feel free
+to send me a message or just fork this repo and submit a pull request.
 
 _-73_
