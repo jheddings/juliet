@@ -82,10 +82,10 @@ messages in the log file, but they are ignored by Juliet.
 
 * `version` (required) - specify the version of the message structure - see below
 * `crc16` (required) - the checksum for the message (sender, content, sequence, signature)
-* `sender` (required) - the sender of the message, specified in config (not the radio MY call)
+* `sender` (required) - the sender of the message
 * `timestamp` (required) - the timestamp when the message was sent
 * `content` (required) - main content of the message; length of the message is not restricted
-* `signature` (optional) - digital signature used to authenticate the sender
+* `signature` (optional) - digital signature used to authenticate the sender (not used currently)
 
 #### Message Types ####
 
