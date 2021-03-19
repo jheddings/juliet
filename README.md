@@ -29,6 +29,8 @@ system libraries.
 
 ## Usage ##
 
+From the `src` directory, run the `juliet` module with your specified config:
+
 ```
 python3 -m juliet juliet.cfg
 ```
