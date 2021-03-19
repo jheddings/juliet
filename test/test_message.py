@@ -3,11 +3,111 @@ import unittest
 import string
 import os
 
-from juliet.message import TextMessage, CompressedTextMessage, ChannelMessage
-from juliet.message import FileMessage
+from juliet.message import MessageBuffer, TextMessage, CompressedTextMessage
+from juliet.message import FileMessage, ChannelMessage
 
 # keep logging output to a minumim for testing
 logging.basicConfig(level=logging.FATAL)
+
+################################################################################
+class MessageBufferTest(unittest.TestCase):
+
+    inbox = None
+
+    #---------------------------------------------------------------------------
+    def setUp(self):
+        self.msgbuf = MessageBuffer()
+        self.msgbuf.on_message += self.recv_msg
+
+    #---------------------------------------------------------------------------
+    def recv_msg(self, msgbuf, msg):
+        if self.inbox is None:
+            self.inbox = [ msg ]
+        else:
+            self.inbox.append(msg)
+
+    #---------------------------------------------------------------------------
+    def check_inbox(self, *expected):
+        self.assertIsNotNone(self.inbox)
+        self.assertEqual(len(expected), len(self.inbox))
+
+        for idx in range(len(expected)):
+            expect = expected[idx]
+            msg = self.inbox[idx]
+            self.assertEqual(expect, msg)
+
+    #---------------------------------------------------------------------------
+    def test_ParseMessage(self):
+        self.inbox = None
+        self.msgbuf.reset()
+
+        data = b'>>0:36FB:unittest:20210319143703:hello world:<<'
+        self.msgbuf.append(data)
+
+        self.assertEqual(len(self.inbox), 1)
+
+        msg = self.inbox[0]
+
+        self.assertEqual(msg.sender, 'unittest')
+        self.assertEqual(msg.content, 'hello world')
+
+    #---------------------------------------------------------------------------
+    def test_SplitMessage(self):
+        self.inbox = None
+        self.msgbuf.reset()
+
+        self.msgbuf.append(b'>>0:36FB:unittest:20210')
+        self.assertIsNone(self.inbox)
+
+        self.msgbuf.append(b'319143703:hello world:<<')
+        self.assertEqual(len(self.inbox), 1)
+
+        msg = self.inbox[0]
+
+        self.assertEqual(msg.sender, 'unittest')
+        self.assertEqual(msg.content, 'hello world')
+
+    #---------------------------------------------------------------------------
+    def test_MultipleMessages(self):
+        self.inbox = None
+        self.msgbuf.reset()
+
+        data = b'>>0:59F6:unittest:20210319145252:hello:<<>>0:A2F3:unittest:20210319145320:world:<<>>BAD'
+        self.msgbuf.append(data)
+
+        self.assertIsNotNone(self.inbox)
+        self.assertEqual(len(self.inbox), 2)
+
+        msg1 = self.inbox[0]
+        msg2 = self.inbox[1]
+
+        self.assertEqual(msg1.content, 'hello')
+        self.assertEqual(msg2.content, 'world')
+
+    #---------------------------------------------------------------------------
+    def test_RestartMessage(self):
+
+        self.msgbuf.append(b'>>0::unitt>>0:36FB:unittest:20210')
+        self.assertIsNone(self.inbox)
+
+        self.msgbuf.append(b'319143703:hello world:<<')
+        self.assertEqual(len(self.inbox), 1)
+
+        msg = self.inbox[0]
+
+        self.assertEqual(msg.sender, 'unittest')
+        self.assertEqual(msg.content, 'hello world')
+        self.assertEqual(len(self.msgbuf.buffer), 0)
+
+    #---------------------------------------------------------------------------
+    def test_BadMessage(self):
+        self.inbox = None
+        self.msgbuf.reset()
+
+        data = b'>>0:36>>B:unittest:202103:blue:<<'
+        self.msgbuf.append(data)
+
+        self.assertIsNone(self.inbox)
 
 ################################################################################
 class MessageTest(unittest.TestCase):

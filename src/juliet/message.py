@@ -7,8 +7,12 @@ import re
 import zlib
 import base64
 import mimetypes
+import threading
+import logging
 
 from datetime import datetime, timezone
+
+from .event import Event
 
 packed_msg_re = re.compile(r'^>>(?P<ver>[a-fA-F0-9]+):(?P<crc>[a-zA-Z0-9]+):(?P<sender>[a-zA-Z0-9~/=+_$@#*&%!|-]+)?:(?P<time>[0-9]{14})?:(?P<msg>.+)(?!\\):(?P<sig>[a-zA-Z0-9]+)?<<$')
 
@@ -90,6 +94,66 @@ import urllib.parse
 
 def char_unescape(text):
     return urllib.parse.unquote(text)
+
+################################################################################
+msg_buf_re = re.compile(rb'>>[^><]+<<')
+DEFAULT_MAX_BUF_LEN = 5 * 1024 * 1025
+
+class MessageBuffer(object):
+
+    #---------------------------------------------------------------------------
+    def __init__(self, maxlen=DEFAULT_MAX_BUF_LEN):
+        self.buffer = b''
+        self.maxlen = maxlen
+
+        self.lock = threading.RLock()
+
+        self.on_message = Event()
+
+    #---------------------------------------------------------------------------
+    def reset(self):
+        with self.lock:
+            self.buffer = b''
+
+    #---------------------------------------------------------------------------
+    def append(self, data):
+        with self.lock:
+            self.buffer += data
+            self.parse_buffer()
+
+            # keep the buffer below our max length...
+            self.buffer = self.buffer[-1 * self.maxlen:]
+
+    #---------------------------------------------------------------------------
+    def parse_buffer(self):
+        messages = list()
+
+        # XXX there may be more efficient ways to handle this...
+
+        with self.lock:
+            m = msg_buf_re.match(self.buffer)
+
+            while m:
+                data = m.group(0)
+                msg = Message.unpack(data)
+
+                if msg is not None:
+                    messages.append(msg)
+                    self.on_message(self, msg)
+
+                # move the buffer to the end of the match and look again
+                self.buffer = self.buffer[m.end():]
+                m = msg_buf_re.match(self.buffer)
+
+            # reset the buffer to the last message marker
+            idx = self.buffer.rfind(b'>>')
+
+            if idx < 0:
+                self.buffer = b''
+            else:
+                self.buffer = self.buffer[idx:]
+
+        return messages
 
 ################################################################################
 class Message(object):

@@ -5,6 +5,10 @@ use for this bot is to enable communications by amateur radio operators when sta
 infrastrastructure is not available.  While it was designed with D-STAR in mind, any
 radio capable of exchanging data over a standard serial port _should_ work.
 
+There are several other good programs for messaging using amateur radios, why make one
+more?  Well, mostly to learn how it's done.  In addition, using a standard like IRC opens
+additional possibilities for relayed messages and the use of any standard IRC chat client.
+
 Written by W0JHX.  Tested using Icom 92AD with the standard programming cable.
 
 ![Chat Session](docs/hello_world.png)

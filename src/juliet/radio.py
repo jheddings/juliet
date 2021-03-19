@@ -11,6 +11,8 @@ import serial
 
 from .event import Event
 
+RECV_BLOCK_SIZE = 4 * 1024
+
 ################################################################################
 # Events => Handler Function
 #   on_xmit => func(radio, data)
@@ -105,10 +107,10 @@ class RadioComm(RadioBase):
             data = None
 
             with self.comm_lock:
-                data = self.comm.readline()
+                data = self.comm.read(RECV_BLOCK_SIZE)
 
             if data and len(data) > 0:
-                self.logger.debug('recv -- %s', data)
+                self.logger.debug('recv -- %s...', data[:10])
                 self.on_recv(self, data)
 
             # unlike the xmit thread, we do a quick sleep here as a yield for
@@ -121,7 +123,7 @@ class RadioComm(RadioBase):
         while self.workers_active:
             try:
                 data = self.xmit_queue.get(False)
-                self.logger.debug('xmit -- %s', data)
+                self.logger.debug('xmit -- %s...', data[:10])
 
                 with self.comm_lock:
                     self.comm.write(data)

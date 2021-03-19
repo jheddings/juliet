@@ -68,8 +68,7 @@ class RadioCommTest(unittest.TestCase, InboxMixin):
 
         self.comm.write(data)
 
-        # sleep long enough for the receive thread to wake up
-        time.sleep(3)
+        time.sleep(2)  # yield to recv thread
 
         self.check_inbox(data)
 
@@ -77,10 +76,24 @@ class RadioCommTest(unittest.TestCase, InboxMixin):
     def test_ReadMultiLineText(self):
         self.inbox = None
 
-        self.comm.write(bytes('hello\nworld\n', 'utf-8'))
+        self.comm.write(bytes('hello\n', 'utf-8'))
+        self.comm.write(bytes('world\n', 'utf-8'))
 
-        # sleep long enough for the receive thread to wake up
-        time.sleep(3)
+        time.sleep(2)  # yield to recv thread
+
+        self.check_inbox(
+            bytes('hello\nworld\n', 'utf-8')
+        )
+
+    #---------------------------------------------------------------------------
+    def test_MultiWrite(self):
+        self.inbox = None
+
+        self.comm.write(bytes('hello\n', 'utf-8'))
+        time.sleep(2)  # yield to recv thread
+
+        self.comm.write(bytes('world\n', 'utf-8'))
+        time.sleep(2)  # yield to recv thread
 
         self.check_inbox(
             bytes('hello\n', 'utf-8'),

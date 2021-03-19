@@ -12,6 +12,7 @@ import irc.bot
 from datetime import datetime, timezone
 
 from .event import Event
+from .message import MessageBuffer
 from .message import Message, TextMessage, ChannelMessage
 
 ################################################################################
@@ -22,6 +23,9 @@ class Juliet(irc.bot.SingleServerIRCBot):
         irc.bot.SingleServerIRCBot.__init__(self, [(server, port)], name, name)
 
         self.auto_channels = channels
+
+        self.msgbuf = MessageBuffer()
+        self.msgbuf.on_message += self._handle_message
 
         self.radio = radio
         self.logger = logging.getLogger('juliet.RadioBot')
@@ -73,13 +77,24 @@ class Juliet(irc.bot.SingleServerIRCBot):
         self.radio.send(data)
 
     #---------------------------------------------------------------------------
+    def on_dccmsg(self, conn, event):
+        self.logger.debug('DCC [MSG] -- %s', event)
+
+    #---------------------------------------------------------------------------
+    def on_dccchat(self, conn, event):
+        self.logger.debug('DCC [CHAT] -- %s', event)
+
+    #---------------------------------------------------------------------------
+    def on_dcc(self, conn, event):
+        self.logger.debug('DCC [CHAT] -- %s', event)
+
+    #---------------------------------------------------------------------------
     def _radio_recv(self, radio, data):
         self.logger.debug('[radio] << %s', data)
+        self.msgbuf.append(data)
 
-        # TODO process multiple messages (as a stream)
-
-        msg = Message.unpack(data)
-
+    #---------------------------------------------------------------------------
+    def _handle_message(self, mbuf, msg):
         if isinstance(msg, ChannelMessage):
             if msg.channel in self.channels:
                 self.connection.notice(msg.channel, f'[{msg.sender}] {msg.content}')
