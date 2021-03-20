@@ -55,9 +55,8 @@ test: venv-configured
 
 clean:
 	rm -Rf "$(BASEDIR)/build"
-	rm -Rf "$(BASEDIR)/__pycache__"
-	rm -Rf "$(BASEDIR)/test/__pycache__"
 	rm -f "$(BASEDIR)/juliet.log"
+	find "$(BASEDIR)" -type f -name "*.pyc" -delete -o -type d -name __pycache__ -delete
 
 ################################################################################
 .PHONY: clobber
