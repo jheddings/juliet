@@ -23,11 +23,12 @@ rebuild: clean build
 ################################################################################
 .PHONY: venv
 
-venv:
+bin/activate: requirements.txt
 	python3 -m venv "$(BASEDIR)"
 	bin/pip3 install -r requirements.txt
-	#TODO find a way to make this work...
-	echo "$(SRCDIR)" > lib/*/site-packages/$(APPNAME).pth
+
+venv: bin/activate
+	echo "$(SRCDIR)" > "$(shell ls -1d lib/*/site-packages)/$(APPNAME).pth"
 
 ################################################################################
 .PHONY: venv-configured
