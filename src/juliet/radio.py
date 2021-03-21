@@ -55,7 +55,7 @@ class RadioComm(RadioBase):
         RadioBase.__init__(self)
 
         self.logger = logging.getLogger('juliet.comm.RadioComm')
-        self.logger.debug('opening radio on %s', serial_port)
+        self.logger.debug('opening radio on %s [%d]', serial_port, baud_rate)
 
         self.comm = serial.Serial(serial_port, baud_rate, timeout=1)
         self.comm_lock = threading.Lock()

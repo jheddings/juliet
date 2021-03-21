@@ -12,8 +12,7 @@ import irc.bot
 from datetime import datetime, timezone
 
 from .event import Event
-from .message import MessageBuffer
-from .message import Message, TextMessage, ChannelMessage
+from .message import MessageBuffer, Message, TextMessage, ChannelMessage
 
 ################################################################################
 class Juliet(irc.bot.SingleServerIRCBot):
