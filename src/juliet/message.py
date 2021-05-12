@@ -14,7 +14,10 @@ from datetime import datetime, timezone
 
 from .event import Event
 
+msg_frame_re = re.compile(rb'>>[^><]+<<')
 packed_msg_re = re.compile(r'^>>(?P<ver>[a-fA-F0-9]+):(?P<crc>[a-zA-Z0-9]+):(?P<sender>[a-zA-Z0-9~/=+_$@#*&%!|-]+)?:(?P<time>[0-9]{14})?:(?P<msg>.+)(?!\\):(?P<sig>[a-zA-Z0-9]+)?<<$')
+
+DEFAULT_MAX_BUF_LEN = 5 * 1024 * 1024
 
 ## FUTURE MESSAGE TYPES:
 #  - Position: current object position
@@ -101,9 +104,6 @@ def char_unescape(text):
     return urllib.parse.unquote(text)
 
 ################################################################################
-msg_buf_re = re.compile(rb'>>[^><]+<<')
-DEFAULT_MAX_BUF_LEN = 5 * 1024 * 1025
-
 class MessageBuffer(object):
 
     #---------------------------------------------------------------------------
@@ -112,6 +112,7 @@ class MessageBuffer(object):
         self.maxlen = maxlen
 
         self.lock = threading.RLock()
+        self.logger = logging.getLogger('juliet.MessageBuffer')
 
         self.on_message = Event()
 
@@ -123,42 +124,50 @@ class MessageBuffer(object):
     #---------------------------------------------------------------------------
     def append(self, data):
         with self.lock:
+            self.logger.debug('adding %d bytes to buffer', len(data))
+
             self.buffer += data
             self.parse_buffer()
 
             # keep the buffer below our max length...
-            self.buffer = self.buffer[-1 * self.maxlen:]
+            if len(self.buffer) > self.maxlen:
+                self.buffer = self.buffer[-1 * self.maxlen:]
 
     #---------------------------------------------------------------------------
     def parse_buffer(self):
         messages = list()
 
-        # XXX there may be more efficient ways to handle this...
-
         with self.lock:
-            m = msg_buf_re.match(self.buffer)
+            self.logger.debug('parsing buffer -- %d bytes', len(self.buffer))
+            frame = self.next_frame()
 
-            while m:
-                data = m.group(0)
-                msg = Message.unpack(data)
-
-                if msg is not None:
+            while frame:
+                try:
+                    msg = Message.unpack(frame)
                     messages.append(msg)
                     self.on_message(self, msg)
+                except ValueError:
+                    self.logger.warning('Invalid message frame -- %s...', frame[:10])
 
-                # move the buffer to the end of the match and look again
-                self.buffer = self.buffer[m.end():]
-                m = msg_buf_re.match(self.buffer)
-
-            # reset the buffer to the last message marker
-            idx = self.buffer.rfind(b'>>')
-
-            if idx < 0:
-                self.buffer = b''
-            else:
-                self.buffer = self.buffer[idx:]
+                frame = self.next_frame()
 
         return messages
+
+    #---------------------------------------------------------------------------
+    def next_frame(self):
+        frame = None
+
+        with self.lock:
+            self.logger.debug('NEXT: %s', self.buffer)
+
+            match = msg_frame_re.search(self.buffer)
+
+            if match:
+                frame = match.group(0)
+                eom = match.end()
+                self.buffer = self.buffer[eom:]
+
+        return frame
 
 ################################################################################
 class Message(object):
@@ -210,9 +219,6 @@ class Message(object):
     def unpack(data, verify_crc=True):
         if data is None or len(data) == 0:
             return None
-
-        # XXX prefer to data.split(b':') and work with parts
-        # XXX - need to check for header and footer
 
         try:
             text = str(data, 'utf-8')

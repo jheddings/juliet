@@ -91,6 +91,7 @@ class MessageBufferTest(unittest.TestCase):
         self.assertIsNone(self.inbox)
 
         self.msgbuf.append(b'319143703:hello world:<<')
+        self.assertIsNotNone(self.inbox)
         self.assertEqual(len(self.inbox), 1)
 
         msg = self.inbox[0]
@@ -104,7 +105,7 @@ class MessageBufferTest(unittest.TestCase):
         self.inbox = None
         self.msgbuf.reset()
 
-        data = b'>>0:36>>B:unittest:202103:blue:<<'
+        data = b'>>B:unittest:202103:blue:<<'
         self.msgbuf.append(data)
 
         self.assertIsNone(self.inbox)
