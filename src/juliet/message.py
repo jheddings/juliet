@@ -16,6 +16,11 @@ from .event import Event
 
 packed_msg_re = re.compile(r'^>>(?P<ver>[a-fA-F0-9]+):(?P<crc>[a-zA-Z0-9]+):(?P<sender>[a-zA-Z0-9~/=+_$@#*&%!|-]+)?:(?P<time>[0-9]{14})?:(?P<msg>.+)(?!\\):(?P<sig>[a-zA-Z0-9]+)?<<$')
 
+## FUTURE MESSAGE TYPES:
+#  - Position: current object position
+#  - Weather: current observed weather
+#  - APRS: maybe just support APRS frames?
+
 ################################################################################
 def format_timestamp(tstamp):
     tstamp = tstamp.astimezone(tz=timezone.utc)

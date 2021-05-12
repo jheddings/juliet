@@ -23,7 +23,8 @@ radio = radio.RadioComm(
 )
 
 jules = Juliet(
-    name=conf.irc_server_nick,
+    nick=conf.irc_server_nick,
+    realname=conf.irc_server_realname,
     server=conf.irc_server_host,
     port=conf.irc_server_port,
     channels=conf.irc_channels,
