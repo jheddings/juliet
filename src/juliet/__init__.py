@@ -132,8 +132,8 @@ class Juliet(irc.bot.SingleServerIRCBot):
             msg = TextMessage(content=text, sender=sender)
             data = msg.pack()
             self.radio.send(data)
-            conn.privmsg(sender, 'Your message has been sent!')
+            conn.privmsg(sender, 'Your message has been sent! 👍')
 
         else:
-            conn.notice(sender, f'Sorry, I don\'t understand "{cmd} 😞"')
+            conn.privmsg(sender, f'Sorry, I don\'t understand "{cmd}" 😞')
 
