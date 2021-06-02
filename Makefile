@@ -24,11 +24,11 @@ rebuild: clean build
 .PHONY: venv
 
 bin/activate: requirements.txt
-	python3 -m venv "$(BASEDIR)"
-	bin/pip3 install -r requirements.txt
+	python3 -m venv --prompt "$(APPNAME)" "$(BASEDIR)/.venv"
+	"$(BASEDIR)/.venv/bin/pip3" install -r requirements.txt
 
 venv: bin/activate
-	echo "$(SRCDIR)" > "$(shell ls -1d lib/*/site-packages)/$(APPNAME).pth"
+	echo "$(SRCDIR)" > "$(BASEDIR)/.venv/lib/*/site-packages/$(APPNAME).pth"
 
 ################################################################################
 .PHONY: venv-configured
@@ -64,8 +64,5 @@ clean:
 # TODO fail if venv activated
 clobber: clean
 	rm -Rf "$(BASEDIR)/dist"
-	rm -Rf "$(BASEDIR)/bin"
-	rm -Rf "$(BASEDIR)/lib"
-	rm -Rf "$(BASEDIR)/include"
-	rm -f "$(BASEDIR)/pyvenv.cfg"
+	rm -Rf "$(BASEDIR)/.venv"
 
