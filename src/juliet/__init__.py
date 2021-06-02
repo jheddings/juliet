@@ -19,7 +19,7 @@ class Juliet(irc.bot.SingleServerIRCBot):
 
     #---------------------------------------------------------------------------
     def __init__(self, nick, radio, server, port=6667, realname=None, channels=None):
-        irc.bot.SingleServerIRCBot.__init__(self, [(server, port)], nick, realname or nick)
+        super().__init__([(server, port)], nick, realname or nick)
 
         self.auto_channels = channels
 

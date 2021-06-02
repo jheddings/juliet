@@ -37,7 +37,7 @@ class RadioLoop(RadioBase):
 
     #---------------------------------------------------------------------------
     def __init__(self):
-        RadioBase.__init__(self)
+        super().__init__()
 
         self.logger = logging.getLogger('juliet.radio.RadioLoop')
 
@@ -52,7 +52,7 @@ class RadioComm(RadioBase):
 
     #---------------------------------------------------------------------------
     def __init__(self, serial_port, baud_rate=9600):
-        RadioBase.__init__(self)
+        super().__init__()
 
         self.logger = logging.getLogger('juliet.radio.RadioComm')
         self.logger.debug('opening radio on %s [%d]', serial_port, baud_rate)

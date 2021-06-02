@@ -318,7 +318,7 @@ class ChannelMessage(TextMessage):
 
     #---------------------------------------------------------------------------
     def __init__(self, content, channel=None, sender=None, signature=None, timestamp=None):
-        TextMessage.__init__(self, content, sender=sender, signature=signature, timestamp=timestamp)
+        super().__init__(content, sender=sender, signature=signature, timestamp=timestamp)
 
         self.channel = channel
 
@@ -341,7 +341,7 @@ class FileMessage(CompressedMessage):
 
     #---------------------------------------------------------------------------
     def __init__(self, content, filename=None, mimetype=None, sender=None, signature=None, timestamp=None):
-        CompressedMessage.__init__(self, content, sender, signature, timestamp)
+        super().__init__(content, sender, signature, timestamp)
 
         self.filename = make_safe_filename(filename)
 
