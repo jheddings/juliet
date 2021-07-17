@@ -73,7 +73,7 @@ class UserConfig(object):
             raise ValueError('missing "server" in configuration')
 
         if 'host' not in g_conf['server']:
-            raise ValueError('missing IRC hostname in configuration')
+            return None
 
         return g_conf['server']['host']
 

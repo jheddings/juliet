@@ -3,7 +3,7 @@
 # Licensed under the MIT License. See LICENSE for full terms.
 ##
 
-VERSION = '0.0.1'
+VERSION = '0.1.1'
 
 import time
 import logging
@@ -37,7 +37,7 @@ class Juliet(irc.bot.SingleServerIRCBot):
 
     #---------------------------------------------------------------------------
     def on_nicknameinuse(self, conn, event):
-        conn.nick(conn.get_nickname() + "_")
+        conn.nick(conn.get_nickname() + '_')
 
     #---------------------------------------------------------------------------
     def on_welcome(self, conn, event):
