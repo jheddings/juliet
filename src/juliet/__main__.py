@@ -23,7 +23,7 @@ class IRCServerBroker(object):
         self.port = conf.irc_server_port
         self.server = None
 
-        self.logger = logging.getLogger('juliet.IRCServerBroker')
+        self.logger = logging.getLogger(__name__).getChild(self.__class__.__name__)
 
     def start(self):
         if self.host is not None:
@@ -34,8 +34,7 @@ class IRCServerBroker(object):
         self.server = server.IRCServer(('0.0.0.0', self.port), server.IRCClient)
         self.host, self.port = self.server.server_address
 
-        self.daemon = threading.Thread(target=self.server.serve_forever, daemon=True)
-        self.daemon.start()
+        self.server.start()
 
     def stop(self):
         if self.server is None:
@@ -43,18 +42,16 @@ class IRCServerBroker(object):
             return
 
         self.logger.debug('stopping local IRC server')
-        self.server.shutdown()
-        self.daemon.join()
+        self.server.stop()
 
         self.server = None
-        self.daemon = None
         self.host = None
 
 ################################################################################
 ## MAIN ENTRY
 
 conf = config.UserConfig()
-logger = logging.getLogger('juliet.main')
+logger = logging.getLogger(__name__)
 
 radio = radio.RadioComm(
     serial_port=conf.radio_port,

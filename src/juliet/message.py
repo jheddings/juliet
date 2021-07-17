@@ -112,7 +112,7 @@ class MessageBuffer(object):
         self.maxlen = maxlen
 
         self.lock = threading.RLock()
-        self.logger = logging.getLogger('juliet.MessageBuffer')
+        self.logger = logging.getLogger(__name__).getChild('MessageBuffer')
 
         self.on_message = Event()
 

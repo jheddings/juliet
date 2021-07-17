@@ -24,7 +24,7 @@ class RadioBase(object):
         self.on_xmit = Event()
         self.on_recv = Event()
 
-        self.logger = logging.getLogger('juliet.radio.RadioBase')
+        self.logger = logging.getLogger(__name__).getChild('RadioBase')
 
     #---------------------------------------------------------------------------
     def send(self, data): pass
@@ -39,7 +39,7 @@ class RadioLoop(RadioBase):
     def __init__(self):
         super().__init__()
 
-        self.logger = logging.getLogger('juliet.radio.RadioLoop')
+        self.logger = logging.getLogger(__name__).getChild('RadioLoop')
 
     #---------------------------------------------------------------------------
     def send(self, data):
@@ -54,7 +54,7 @@ class RadioComm(RadioBase):
     def __init__(self, serial_port, baud_rate=9600):
         super().__init__()
 
-        self.logger = logging.getLogger('juliet.radio.RadioComm')
+        self.logger = logging.getLogger(__name__).getChild('RadioComm')
         self.logger.debug('opening radio on %s [%d]', serial_port, baud_rate)
 
         self.comm = serial.Serial(serial_port, baud_rate, timeout=1)

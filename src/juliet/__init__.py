@@ -27,7 +27,7 @@ class Juliet(irc.bot.SingleServerIRCBot):
         self.msgbuf.on_message += self._handle_message
 
         self.radio = radio
-        self.logger = logging.getLogger('juliet.Juliet')
+        self.logger = logging.getLogger(__name__).getChild('Juliet')
 
         if radio is None:
             raise ValueError('radio not specified')
