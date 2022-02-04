@@ -50,9 +50,9 @@ run: venv-configured test
 	python3 -m juliet
 
 ################################################################################
-.PHONY: preflight
+.PHONY: static_check
 
-preflight: venv-configured test
+static_check: venv-configured
 	isort --profile black $(SOURCES)
 	black $(SOURCES)
 	flake8 --ignore=E266,E402,E501 $(SOURCES)
@@ -62,6 +62,11 @@ preflight: venv-configured test
 
 test: venv-configured
 	python3 -m unittest discover -v -s "$(BASEDIR)/tests"
+
+################################################################################
+.PHONY: preflight
+
+preflight: static_check test
 
 ################################################################################
 .PHONY: clean
