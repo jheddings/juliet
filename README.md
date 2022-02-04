@@ -50,6 +50,13 @@ avoid frequency congenstion.
 This documentation is missing...  For now, please use the sample `juliet.cfg` file to
 get started.
 
+## Server Setup ##
+
+To use Juliet, you will need a running IRC server.  There are many options available,
+including quite a few that are free.  For this project (and in general), I use
+[ngIRCd](https://ngircd.barton.de).  If you find another option that works well,
+feel free to start a discussion in the project page.
+
 ## Technical Info ##
 
 It is hard to find information online about some of this stuff, so here is some detail
