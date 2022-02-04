@@ -3,21 +3,16 @@
 # Licensed under the MIT License. See LICENSE for full terms.
 ##
 
-import os
-import sys
-import threading
 import logging
 
 from irc import server
 
-from . import config
-from . import radio
-
 from juliet import Juliet
 
-################################################################################
-class IRCServerBroker(object):
+from . import config, radio
 
+
+class IRCServerBroker(object):
     def __init__(self, conf):
         self.host = conf.irc_server_host
         self.port = conf.irc_server_port
@@ -27,36 +22,33 @@ class IRCServerBroker(object):
 
     def start(self):
         if self.host is not None:
-            self.logger.debug('using remote IRC server -- %s:%d', self.host, self.port)
+            self.logger.debug("using remote IRC server -- %s:%d", self.host, self.port)
             return
 
-        self.logger.debug('starting local IRC server on port %d', self.port)
-        self.server = server.IRCServer(('0.0.0.0', self.port), server.IRCClient)
+        self.logger.debug("starting local IRC server on port %d", self.port)
+        self.server = server.IRCServer(("0.0.0.0", self.port), server.IRCClient)
         self.host, self.port = self.server.server_address
 
         self.server.start()
 
     def stop(self):
         if self.server is None:
-            self.logger.debug('server not running; nothing to do')
+            self.logger.debug("server not running; nothing to do")
             return
 
-        self.logger.debug('stopping local IRC server')
+        self.logger.debug("stopping local IRC server")
         self.server.stop()
 
         self.server = None
         self.host = None
 
-################################################################################
+
 ## MAIN ENTRY
 
 conf = config.UserConfig()
 logger = logging.getLogger(__name__)
 
-radio = radio.RadioComm(
-    serial_port=conf.radio_port,
-    baud_rate=conf.radio_baud
-)
+radio = radio.RadioComm(serial_port=conf.radio_port, baud_rate=conf.radio_baud)
 
 broker = IRCServerBroker(conf)
 broker.start()
@@ -67,7 +59,7 @@ jules = Juliet(
     server=broker.host,
     port=broker.port,
     channels=conf.irc_channels,
-    radio=radio
+    radio=radio,
 )
 
 # !! main applicaton start
@@ -75,11 +67,10 @@ jules = Juliet(
 try:
     jules.start()
 except KeyboardInterrupt:
-    logger.info('Canceled by user')
-    jules.disconnect('offline')
+    logger.info("Canceled by user")
+    jules.disconnect("offline")
 
 # !! main applicaton exit
 
 radio.close()
 broker.stop()
-

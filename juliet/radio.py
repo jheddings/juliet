@@ -3,59 +3,54 @@
 # Licensed under the MIT License. See LICENSE for full terms.
 ##
 
+import logging
 import queue
 import threading
 import time
-import logging
+
 import serial
 
 from .event import Event
 
 RECV_BLOCK_SIZE = 4 * 1024
 
-################################################################################
 # Events => Handler Function
 #   on_xmit => func(radio, data)
 #   on_recv => func(radio, data)
-class RadioBase(object):
 
-    #---------------------------------------------------------------------------
+
+class RadioBase(object):
     def __init__(self):
         self.on_xmit = Event()
         self.on_recv = Event()
 
-        self.logger = logging.getLogger(__name__).getChild('RadioBase')
+        self.logger = logging.getLogger(__name__).getChild("RadioBase")
 
-    #---------------------------------------------------------------------------
-    def send(self, data): pass
+    def send(self, data):
+        pass
 
-    #---------------------------------------------------------------------------
-    def close(self): pass
+    def close(self):
+        pass
 
-################################################################################
+
 class RadioLoop(RadioBase):
-
-    #---------------------------------------------------------------------------
     def __init__(self):
         super().__init__()
 
-        self.logger = logging.getLogger(__name__).getChild('RadioLoop')
+        self.logger = logging.getLogger(__name__).getChild("RadioLoop")
 
-    #---------------------------------------------------------------------------
     def send(self, data):
         self.on_xmit(self, data)
-        self.logger.debug('send -- %s', data)
+        self.logger.debug("send -- %s", data)
         self.on_recv(self, data)
 
-################################################################################
-class RadioComm(RadioBase):
 
-    #---------------------------------------------------------------------------
+class RadioComm(RadioBase):
     def __init__(self, serial_port, baud_rate=9600):
         super().__init__()
 
-        self.logger = logging.getLogger(__name__).getChild('RadioComm')
-        self.logger.debug('opening radio on %s [%d]', serial_port, baud_rate)
+        self.logger = logging.getLogger(__name__).getChild("RadioComm")
+        self.logger.debug("opening radio on %s [%d]", serial_port, baud_rate)
 
         self.comm = serial.Serial(serial_port, baud_rate, timeout=1)
         self.comm_lock = threading.Lock()
@@ -71,37 +66,34 @@ class RadioComm(RadioBase):
         self.recv_thread = threading.Thread(target=self._recv_worker, daemon=True)
         self.recv_thread.start()
 
-        self.logger.info('Radio online -- %s', serial_port)
+        self.logger.info("Radio online -- %s", serial_port)
 
-    #---------------------------------------------------------------------------
     def send(self, data):
         if data is None or len(data) == 0:
             return False
 
-        self.logger.debug('queueing XMIT message -- %s...', data[:10])
+        self.logger.debug("queueing XMIT message -- %s...", data[:10])
         self.xmit_queue.put(data)
 
         return True
 
-    #---------------------------------------------------------------------------
     def close(self):
-        self.logger.debug('closing radio comms...')
+        self.logger.debug("closing radio comms...")
         self.workers_active = False
 
         # TODO support timeouts on thread joins
 
-        self.logger.debug('- waiting for transmitter...')
+        self.logger.debug("- waiting for transmitter...")
         self.xmit_thread.join()
 
-        self.logger.debug('- waiting for receiver...')
+        self.logger.debug("- waiting for receiver...")
         self.recv_thread.join()
 
-        self.logger.debug('- closing serial port...')
+        self.logger.debug("- closing serial port...")
         self.comm.close()
 
-        self.logger.info('Radio offline.')
+        self.logger.info("Radio offline.")
 
-    #---------------------------------------------------------------------------
     def _recv_worker(self):
         while self.workers_active:
             data = None
@@ -110,7 +102,7 @@ class RadioComm(RadioBase):
                 data = self.comm.read(RECV_BLOCK_SIZE)
 
             if data and len(data) > 0:
-                self.logger.debug('recv -- %s...', data[:10])
+                self.logger.debug("recv -- %s...", data[:10])
                 self.on_recv(self, data)
 
             # unlike the xmit thread, we do a quick sleep here as a yield for
@@ -118,12 +110,11 @@ class RadioComm(RadioBase):
 
             time.sleep(0)
 
-    #---------------------------------------------------------------------------
     def _xmit_worker(self):
         while self.workers_active:
             try:
                 data = self.xmit_queue.get(False)
-                self.logger.debug('xmit -- %s...', data[:10])
+                self.logger.debug("xmit -- %s...", data[:10])
 
                 with self.comm_lock:
                     self.comm.write(data)
@@ -139,4 +130,3 @@ class RadioComm(RadioBase):
             # - limit transmission rate
 
             time.sleep(1)
-
