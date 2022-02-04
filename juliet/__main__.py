@@ -5,72 +5,33 @@
 
 import logging
 
-from irc import server
-
 from juliet import Juliet
 
 from . import config, radio
+from .version import __version__
 
-
-class IRCServerBroker(object):
-    def __init__(self, conf):
-        self.host = conf.irc_server_host
-        self.port = conf.irc_server_port
-        self.server = None
-
-        self.logger = logging.getLogger(__name__).getChild(self.__class__.__name__)
-
-    def start(self):
-        if self.host is not None:
-            self.logger.debug("using remote IRC server -- %s:%d", self.host, self.port)
-            return
-
-        self.logger.debug("starting local IRC server on port %d", self.port)
-        self.server = server.IRCServer(("0.0.0.0", self.port), server.IRCClient)
-        self.host, self.port = self.server.server_address
-
-        self.server.start()
-
-    def stop(self):
-        if self.server is None:
-            self.logger.debug("server not running; nothing to do")
-            return
-
-        self.logger.debug("stopping local IRC server")
-        self.server.stop()
-
-        self.server = None
-        self.host = None
-
+__all__ = ["__version__"]
 
 ## MAIN ENTRY
 
 conf = config.UserConfig()
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 radio = radio.RadioComm(serial_port=conf.radio_port, baud_rate=conf.radio_baud)
-
-broker = IRCServerBroker(conf)
-broker.start()
 
 jules = Juliet(
     nick=conf.irc_server_nick,
     realname=conf.irc_server_realname,
-    server=broker.host,
-    port=broker.port,
+    server=conf.irc_server_host,
+    port=conf.irc_server_port,
     channels=conf.irc_channels,
     radio=radio,
 )
 
-# !! main applicaton start
-
 try:
     jules.start()
 except KeyboardInterrupt:
-    logger.info("Canceled by user")
+    log.info("Canceled by user")
     jules.disconnect("offline")
 
-# !! main applicaton exit
-
 radio.close()
-broker.stop()

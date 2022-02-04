@@ -127,7 +127,8 @@ class MessageBuffer(object):
 
             # keep the buffer below our max length...
             if len(self.buffer) > self.maxlen:
-                self.buffer = self.buffer[(-1 * self.maxlen) :]
+                trim_buff = -1 * self.maxlen
+                self.buffer = self.buffer[trim_buff:]
 
     def parse_buffer(self):
         messages = list()

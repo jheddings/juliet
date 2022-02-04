@@ -1,4 +1,4 @@
-bin
-lib
-include
-pyvenv.cfg
+.venv
+.vscode
+
+__pycache__

@@ -35,8 +35,6 @@ def load_config(config_file):
     return conf
 
 
-# XXX is there a standard way to handle app config files?
-# sort of like Yamale combined with argparse? https://github.com/23andMe/Yamale
 class UserConfig(object):
 
     # the port name for accessing the radio (required)

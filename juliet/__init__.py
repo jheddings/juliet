@@ -3,8 +3,6 @@
 # Licensed under the MIT License. See LICENSE for full terms.
 ##
 
-VERSION = "0.1.1"
-
 import logging
 
 import irc.bot
