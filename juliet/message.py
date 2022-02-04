@@ -87,7 +87,13 @@ def make_safe_filename(unsafe):
 
 # make text safe for transmitting (mostly protocol chracters)...
 
-char_entities = {":": "%3A", ">": "%3E", "<": "%3C", "\r": "%0D", "\n": "%0A"}
+char_entities = {
+    ":": "%3A",
+    ">": "%3E",
+    "<": "%3C",
+    "\r": "%0D",
+    "\n": "%0A",
+}
 
 
 def char_escape(text):

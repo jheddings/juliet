@@ -21,10 +21,10 @@ appropriate folder on your computer.
 Before using `juliet`, you will need to install the modules from `requirements.txt`:
 
 ```
-python3 -m install -r requirements.txt
+python3 -m install -r requirements/core.txt
 ```
 
-*NOTE* Advanced users may with to do this using `venv` to avoid changes in their
+*NOTE* Advanced users may wish to do this using `venv` to avoid changes in their
 system libraries.
 
 ## Usage ##

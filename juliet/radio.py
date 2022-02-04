@@ -14,6 +14,8 @@ from .event import Event
 
 RECV_BLOCK_SIZE = 4 * 1024
 
+# XXX consider a RadioSocket implementation
+
 # Events => Handler Function
 #   on_xmit => func(radio, data)
 #   on_recv => func(radio, data)
