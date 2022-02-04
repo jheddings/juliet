@@ -35,97 +35,80 @@ def load_config(config_file):
     return conf
 
 
-class UserConfig(object):
+class Default(object):
 
     # the port name for accessing the radio (required)
-    @property
-    def radio_port(self):
-        if "radio" not in g_conf:
-            raise ValueError('missing "radio" in configuration')
-
-        if "port" not in g_conf["radio"]:
-            raise ValueError("missing radio port in configuration")
-
-        return g_conf["radio"]["port"]
+    RADIO_COMM_PORT = "/dev/tty.usbserial"
 
     # the baud rate when accessing the radio (default to 9600)
-    @property
-    def radio_baud(self):
-        if "radio" not in g_conf or "baud" not in g_conf["radio"]:
-            return 9600
-
-        if type(g_conf["radio"]["baud"]) is not int:
-            raise ValueError("baud rate must be an integer")
-
-        return g_conf["radio"]["baud"]
+    RADIO_BAUD_RATE = 9600
 
     # the hostname of the target IRC server (required)
-    @property
-    def irc_server_host(self):
-        if "server" not in g_conf:
-            raise ValueError('missing "server" in configuration')
-
-        if "host" not in g_conf["server"]:
-            return None
-
-        return g_conf["server"]["host"]
+    IRC_SERVER_HOST = "localhost"
 
     # the port of the target IRC server (default to 6667)
-    @property
-    def irc_server_port(self):
-        if "server" not in g_conf or "port" not in g_conf["server"]:
-            return 6667
-
-        if type(g_conf["server"]["port"]) is not int:
-            raise ValueError("IRC server port must be an integer")
-
-        return g_conf["server"]["port"]
+    IRC_SERVER_PORT = 6667
 
     # the nick & user for the IRC server (required)
-    @property
-    def irc_server_nick(self):
-        if "server" not in g_conf:
-            raise ValueError('missing "server" in configuration')
-
-        if "nickname" not in g_conf["server"]:
-            raise ValueError("missing IRC nickname in configuration")
-
-        return g_conf["server"]["nickname"]
+    IRC_NICKNAME = "juliet"
 
     # the full name reported by the bot to the IRC server
-    @property
-    def irc_server_realname(self):
-        if "server" not in g_conf or "realname" not in g_conf["server"]:
-            return None
-
-        return g_conf["server"]["realname"]
+    IRC_REALNAME = "Juliet Radio Bot"
 
     # the password used to join the IRC server (default to None)
-    @property
-    def irc_server_password(self):
-        if "server" not in g_conf or "password" not in g_conf["server"]:
-            return None
-
-        return g_conf["server"]["password"]
+    IRC_PASSWORD = None
 
     # the default JOIN channels on the IRC server (default to None)
-    @property
-    def irc_channels(self):
-        if "server" not in g_conf or "channels" not in g_conf["server"]:
-            return None
+    IRC_CHANNELS = None
 
-        channels = list()
+    def validate(self):
 
-        for chan in g_conf["server"]["channels"]:
-            if "name" not in chan:
-                raise ValueError("missing channel name in configuration")
+        if self.IRC_SERVER_HOST is None:
+            raise ValueError("IRC server host must be specified")
 
-            if "key" not in chan:
-                chan["key"] = None
+        if self.IRC_SERVER_PORT is None:
+            raise ValueError("IRC server port must be specified")
 
-            channels.append(chan)
+        if self.IRC_NICKNAME is None:
+            raise ValueError("IRC nickname must be specified")
 
-        return channels
+        if self.RADIO_COMM_PORT is None:
+            raise ValueError("Radio port must be specified")
+
+        if self.RADIO_BAUD_RATE is None:
+            raise ValueError("Radio port must be specified")
+
+
+class User(Default):
+    def __init__(self):
+        if "server" in g_conf:
+            conf = g_conf["server"]
+
+            self.IRC_SERVER_HOST = conf.get("host", "localhost")
+            self.IRC_SERVER_PORT = conf.get("port", 6667)
+
+            self.IRC_NICKNAME = conf.get("nickname", "juliet")
+            self.IRC_REALNAME = conf.get("realname", "Juliet Radio Bot")
+            self.IRC_PASSWORD = conf.get("password", None)
+
+            self.IRC_CHANNELS = list()
+
+            for channel in conf.get("channels", None):
+                if "name" not in channel:
+                    raise ValueError("missing channel name in configuration")
+
+                if "key" not in channel:
+                    channel["key"] = None
+
+                self.IRC_CHANNELS.append(channel)
+
+        if "radio" in g_conf:
+            conf = g_conf["radio"]
+
+            self.RADIO_COMM_PORT = conf.get("port", None)
+            self.RADIO_BAUD_RATE = conf.get("baud", 9600)
+
+        self.validate()
 
 
 if len(sys.argv) > 1:

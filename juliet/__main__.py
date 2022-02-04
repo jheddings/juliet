@@ -14,17 +14,19 @@ __all__ = ["__version__"]
 
 ## MAIN ENTRY
 
-conf = config.UserConfig()
+conf = config.User()
 log = logging.getLogger(__name__)
 
-radio = radio.RadioComm(serial_port=conf.radio_port, baud_rate=conf.radio_baud)
+radio = radio.RadioComm(
+    serial_port=conf.RADIO_COMM_PORT, baud_rate=conf.RADIO_BAUD_RATE
+)
 
 jules = Juliet(
-    nick=conf.irc_server_nick,
-    realname=conf.irc_server_realname,
-    server=conf.irc_server_host,
-    port=conf.irc_server_port,
-    channels=conf.irc_channels,
+    nick=conf.IRC_NICKNAME,
+    realname=conf.IRC_REALNAME,
+    server=conf.IRC_SERVER_HOST,
+    port=conf.IRC_SERVER_PORT,
+    channels=conf.IRC_CHANNELS,
     radio=radio,
 )
 
