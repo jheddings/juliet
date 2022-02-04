@@ -25,6 +25,7 @@ rebuild: clean build
 
 bin/activate: requirements.txt
 	python3 -m venv --prompt "$(APPNAME)" "$(BASEDIR)/.venv"
+	"$(BASEDIR)/.venv/bin/pip3" install --upgrade pip
 	"$(BASEDIR)/.venv/bin/pip3" install -r requirements.txt
 
 venv: bin/activate
