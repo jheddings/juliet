@@ -1,3 +1,4 @@
+import os
 import time
 import unittest
 
@@ -6,19 +7,16 @@ import serial
 import juliet.radio
 
 
-################################################################################
 class InboxMixin(object):
 
     inbox = None
 
-    # ---------------------------------------------------------------------------
     def recv_msg(self, radio, data):
         if self.inbox is None:
             self.inbox = [data]
         else:
             self.inbox.append(data)
 
-    # ---------------------------------------------------------------------------
     def check_inbox(self, *expected):
         self.assertIsNotNone(self.inbox)
         self.assertEqual(len(expected), len(self.inbox))
@@ -29,19 +27,14 @@ class InboxMixin(object):
             self.assertEqual(expect, msg)
 
 
-################################################################################
 class RadioLoopTest(unittest.TestCase, InboxMixin):
-
-    # ---------------------------------------------------------------------------
     def setUp(self):
         self.radio = juliet.radio.RadioLoop()
         self.radio.on_recv += self.recv_msg
 
-    # ---------------------------------------------------------------------------
     def tearDown(self):
         self.radio.close()
 
-    # ---------------------------------------------------------------------------
     def test_BasicReadTest(self):
         self.inbox = None
         text = "hello world!"
@@ -49,22 +42,20 @@ class RadioLoopTest(unittest.TestCase, InboxMixin):
         self.check_inbox(text)
 
 
-################################################################################
 class RadioCommTest(unittest.TestCase, InboxMixin):
-
-    # ---------------------------------------------------------------------------
     def setUp(self):
+        if not os.path.exists("/dev/ttyr2"):
+            raise unittest.SkipTest("unable to find serial port for test")
+
         self.comm = serial.Serial("/dev/ttyr2", timeout=1)
 
         self.radio = juliet.radio.RadioComm("/dev/ptyr2")
         self.radio.on_recv += self.recv_msg
 
-    # ---------------------------------------------------------------------------
     def tearDown(self):
         self.radio.close()
         self.comm.close()
 
-    # ---------------------------------------------------------------------------
     def test_BasicReadTest(self):
         self.inbox = None
         text = "hello world!"
@@ -76,7 +67,6 @@ class RadioCommTest(unittest.TestCase, InboxMixin):
 
         self.check_inbox(data)
 
-    # ---------------------------------------------------------------------------
     def test_ReadMultiLineText(self):
         self.inbox = None
 
@@ -87,7 +77,6 @@ class RadioCommTest(unittest.TestCase, InboxMixin):
 
         self.check_inbox(bytes("hello\nworld\n", "utf-8"))
 
-    # ---------------------------------------------------------------------------
     def test_MultiWrite(self):
         self.inbox = None
 
