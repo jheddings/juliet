@@ -32,12 +32,13 @@ venv: requirements/core.txt requirements/dev.txt
 	python3 -m venv --prompt "$(APPNAME)" "$(BASEDIR)/.venv"
 	"$(BASEDIR)/.venv/bin/pip3" install --upgrade pip
 	"$(BASEDIR)/.venv/bin/pip3" install -r requirements/core.txt
-	"$(BASEDIR)/.venv/bin/pip3" install -r requirements/dev.txt
 
 ################################################################################
 .PHONY: devenv
 
 devenv: venv
+	"$(BASEDIR)/.venv/bin/pip3" install -r requirements/dev.txt
+	"$(BASEDIR)/.venv/bin/pip3" install -r requirements/test.txt
 	$(WITH_VENV) pre-commit install
 
 ################################################################################
@@ -50,7 +51,7 @@ run:
 .PHONY: test
 
 test:
-	$(WITH_VENV) python3 -m unittest discover -v -s "$(BASEDIR)/tests"
+	$(WITH_VENV) pytest "$(BASEDIR)/tests"
 
 ################################################################################
 .PHONY: preflight
