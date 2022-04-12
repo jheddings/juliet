@@ -18,13 +18,13 @@ class InboxMixin(object):
             self.inbox.append(data)
 
     def check_inbox(self, *expected):
-        self.assertIsNotNone(self.inbox)
-        self.assertEqual(len(expected), len(self.inbox))
+        assert self.inbox is not None
+        assert len(expected) == len(self.inbox)
 
         for idx in range(len(expected)):
             expect = expected[idx]
             msg = self.inbox[idx]
-            self.assertEqual(expect, msg)
+            assert expect == msg
 
 
 class RadioLoopTest(unittest.TestCase, InboxMixin):

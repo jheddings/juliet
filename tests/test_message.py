@@ -29,13 +29,13 @@ class MessageBufferTest(unittest.TestCase):
             self.inbox.append(msg)
 
     def check_inbox(self, *expected):
-        self.assertIsNotNone(self.inbox)
-        self.assertEqual(len(expected), len(self.inbox))
+        assert self.inbox is not None
+        assert len(expected) == len(self.inbox)
 
         for idx in range(len(expected)):
             expect = expected[idx]
             msg = self.inbox[idx]
-            self.assertEqual(expect, msg)
+            assert expect == msg
 
     def test_ParseMessage(self):
         self.inbox = None
@@ -44,27 +44,27 @@ class MessageBufferTest(unittest.TestCase):
         data = b">>0:36FB:unittest:20210319143703:hello world:<<"
         self.msgbuf.append(data)
 
-        self.assertEqual(len(self.inbox), 1)
+        assert len(self.inbox) == 1
 
         msg = self.inbox[0]
 
-        self.assertEqual(msg.sender, "unittest")
-        self.assertEqual(msg.content, "hello world")
+        assert msg.sender == "unittest"
+        assert msg.content == "hello world"
 
     def test_SplitMessage(self):
         self.inbox = None
         self.msgbuf.reset()
 
         self.msgbuf.append(b">>0:36FB:unittest:20210")
-        self.assertIsNone(self.inbox)
+        assert self.inbox is None
 
         self.msgbuf.append(b"319143703:hello world:<<")
-        self.assertEqual(len(self.inbox), 1)
+        assert len(self.inbox) == 1
 
         msg = self.inbox[0]
 
-        self.assertEqual(msg.sender, "unittest")
-        self.assertEqual(msg.content, "hello world")
+        assert msg.sender == "unittest"
+        assert msg.content == "hello world"
 
     def test_MultipleMessages(self):
         self.inbox = None
@@ -73,29 +73,29 @@ class MessageBufferTest(unittest.TestCase):
         data = b">>0:59F6:unittest:20210319145252:hello:<<>>0:A2F3:unittest:20210319145320:world:<<>>BAD"
         self.msgbuf.append(data)
 
-        self.assertIsNotNone(self.inbox)
-        self.assertEqual(len(self.inbox), 2)
+        assert self.inbox is not None
+        assert len(self.inbox) == 2
 
         msg1 = self.inbox[0]
         msg2 = self.inbox[1]
 
-        self.assertEqual(msg1.content, "hello")
-        self.assertEqual(msg2.content, "world")
+        assert msg1.content == "hello"
+        assert msg2.content == "world"
 
     def test_RestartMessage(self):
 
         self.msgbuf.append(b">>0::unitt>>0:36FB:unittest:20210")
-        self.assertIsNone(self.inbox)
+        assert self.inbox is None
 
         self.msgbuf.append(b"319143703:hello world:<<")
-        self.assertIsNotNone(self.inbox)
-        self.assertEqual(len(self.inbox), 1)
+        assert self.inbox is not None
+        assert len(self.inbox) == 1
 
         msg = self.inbox[0]
 
-        self.assertEqual(msg.sender, "unittest")
-        self.assertEqual(msg.content, "hello world")
-        self.assertEqual(len(self.msgbuf.buffer), 0)
+        assert msg.sender == "unittest"
+        assert msg.content == "hello world"
+        assert len(self.msgbuf.buffer) == 0
 
     def test_BadMessage(self):
         self.inbox = None
@@ -104,7 +104,7 @@ class MessageBufferTest(unittest.TestCase):
         data = b">>B:unittest:202103:blue:<<"
         self.msgbuf.append(data)
 
-        self.assertIsNone(self.inbox)
+        assert self.inbox is None
 
 
 class MessageTest(unittest.TestCase):
@@ -162,7 +162,7 @@ class MessageTest(unittest.TestCase):
         packed = orig.pack()
         copy = CompressedTextMessage.unpack(packed)
 
-        self.assertEqual(orig, copy)
+        assert orig == copy
 
     def test_ChannelMessage(self):
         text = "hello world"
@@ -172,10 +172,10 @@ class MessageTest(unittest.TestCase):
         packed = orig.pack()
         copy = ChannelMessage.unpack(packed)
 
-        self.assertEqual(copy.channel, "#general")
-        self.assertEqual(copy.content, "hello world")
+        assert copy.channel == "#general"
+        assert copy.content == "hello world"
 
-        self.assertEqual(orig, copy)
+        assert orig == copy
 
     def test_FileMessage(self):
         with open(__file__) as fp:
@@ -185,21 +185,21 @@ class MessageTest(unittest.TestCase):
         packed = orig.pack()
         copy = FileMessage.unpack(packed)
 
-        self.assertEqual(orig, copy)
+        assert orig == copy
 
-        self.assertEqual(orig.content, content)
-        self.assertEqual(content, copy.content)
+        assert orig.content == content
+        assert content == copy.content
 
     def check_standard_text_msg(self, text):
         orig = TextMessage(text, sender="unittest")
         packed = orig.pack()
         copy = TextMessage.unpack(packed)
 
-        self.assertIsNotNone(packed)
-        self.assertIsNotNone(orig)
-        self.assertIsNotNone(copy)
+        assert packed is not None
+        assert orig is not None
+        assert copy is not None
 
-        self.assertEqual(text, orig.content)
-        self.assertEqual(text, copy.content)
+        assert text == orig.content
+        assert text == copy.content
 
-        self.assertEqual(orig, copy)
+        assert orig == copy
