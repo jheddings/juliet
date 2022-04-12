@@ -14,4 +14,17 @@ repos:
     rev: "4.0.1"
     hooks:
       - id: flake8
-        args: [ "--ignore=E266,E402,E501,E203" ]
+        additional_dependencies:
+          - flake8-alfred
+          - flake8-breakpoint
+          - flake8-bugbear
+          # - flake8-builtins
+          - flake8-comprehensions
+          # - flake8-docstrings
+          - flake8-eradicate
+          # - flake8-print
+          - flake8-logging-format
+          # - flake8-return
+          # - flake8-requirements
+          # - flake8-todo
+          - pep8-naming

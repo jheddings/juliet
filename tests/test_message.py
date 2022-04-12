@@ -37,7 +37,7 @@ class MessageBufferTest(unittest.TestCase):
             msg = self.inbox[idx]
             assert expect == msg
 
-    def test_ParseMessage(self):
+    def test_basic_parse_message(self):
         self.inbox = None
         self.msgbuf.reset()
 
@@ -51,7 +51,7 @@ class MessageBufferTest(unittest.TestCase):
         assert msg.sender == "unittest"
         assert msg.content == "hello world"
 
-    def test_SplitMessage(self):
+    def test_split_message(self):
         self.inbox = None
         self.msgbuf.reset()
 
@@ -66,7 +66,7 @@ class MessageBufferTest(unittest.TestCase):
         assert msg.sender == "unittest"
         assert msg.content == "hello world"
 
-    def test_MultipleMessages(self):
+    def test_handle_multiple_messages(self):
         self.inbox = None
         self.msgbuf.reset()
 
@@ -82,7 +82,7 @@ class MessageBufferTest(unittest.TestCase):
         assert msg1.content == "hello"
         assert msg2.content == "world"
 
-    def test_RestartMessage(self):
+    def test_restart_message(self):
 
         self.msgbuf.append(b">>0::unitt>>0:36FB:unittest:20210")
         assert self.inbox is None
@@ -97,7 +97,7 @@ class MessageBufferTest(unittest.TestCase):
         assert msg.content == "hello world"
         assert len(self.msgbuf.buffer) == 0
 
-    def test_BadMessage(self):
+    def test_bad_message(self):
         self.inbox = None
         self.msgbuf.reset()
 
@@ -108,19 +108,19 @@ class MessageBufferTest(unittest.TestCase):
 
 
 class MessageTest(unittest.TestCase):
-    def test_PrintableCharacters(self):
+    def test_printable_characters(self):
         text = string.printable
         self.check_standard_text_msg(text)
 
-    def test_StandardASCII(self):
+    def test_standard_ascii(self):
         text = "".join([chr(ch) for ch in range(32, 128)])
         self.check_standard_text_msg(text)
 
-    def test_ExtendedASCII(self):
+    def test_extended_ascii(self):
         text = "".join([chr(ch) for ch in range(128, 256)])
         self.check_standard_text_msg(text)
 
-    def test_UTF8(self):
+    def test_utf8(self):
         text = "нєℓℓσ ωσяℓ∂"
         self.check_standard_text_msg(text)
 
@@ -136,7 +136,7 @@ class MessageTest(unittest.TestCase):
         text = "😀🙃😳🤔🤐🤬👻☠☃💯"
         self.check_standard_text_msg(text)
 
-    def test_SpecialProtocolCharacters(self):
+    def test_protocol_characters(self):
         text = "Lorem ipsum:dolorsit:amet"
         self.check_standard_text_msg(text)
 
@@ -155,7 +155,7 @@ class MessageTest(unittest.TestCase):
         text = ",Lorem|ipsum:dolor+sit<<amet"
         self.check_standard_text_msg(text)
 
-    def test_CompressedTextMessage(self):
+    def test_compressed_text_message(self):
         text = string.printable * 4
 
         orig = CompressedTextMessage(text)
@@ -164,7 +164,7 @@ class MessageTest(unittest.TestCase):
 
         assert orig == copy
 
-    def test_ChannelMessage(self):
+    def test_channel_message(self):
         text = "hello world"
         channel = "#general"
 
@@ -177,7 +177,7 @@ class MessageTest(unittest.TestCase):
 
         assert orig == copy
 
-    def test_FileMessage(self):
+    def test_file_message(self):
         with open(__file__) as fp:
             content = fp.read()
 

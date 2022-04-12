@@ -137,7 +137,7 @@ class MessageBuffer(object):
                 self.buffer = self.buffer[trim_buff:]
 
     def parse_buffer(self):
-        messages = list()
+        messages = []
 
         with self.lock:
             self.logger.debug("parsing buffer -- %d bytes", len(self.buffer))
@@ -211,7 +211,8 @@ class Message(object):
 
         return bytes(text, "utf-8")
 
-    def unpack(data, verify_crc=True):
+    @classmethod
+    def unpack(cls, data, verify_crc=True):
         if data is None or len(data) == 0:
             return None
 

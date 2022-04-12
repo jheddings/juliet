@@ -35,7 +35,7 @@ class RadioLoopTest(unittest.TestCase, InboxMixin):
     def tearDown(self):
         self.radio.close()
 
-    def test_BasicReadTest(self):
+    def test_basic_radio_read(self):
         self.inbox = None
         text = "hello world!"
         self.radio.send(text)
@@ -56,7 +56,7 @@ class RadioCommTest(unittest.TestCase, InboxMixin):
         self.radio.close()
         self.comm.close()
 
-    def test_BasicReadTest(self):
+    def test_basic_comm_read(self):
         self.inbox = None
         text = "hello world!"
         data = bytes(text, "utf-8")
@@ -67,7 +67,7 @@ class RadioCommTest(unittest.TestCase, InboxMixin):
 
         self.check_inbox(data)
 
-    def test_ReadMultiLineText(self):
+    def test_read_multiline_text(self):
         self.inbox = None
 
         self.comm.write(bytes("hello\n", "utf-8"))
@@ -77,7 +77,7 @@ class RadioCommTest(unittest.TestCase, InboxMixin):
 
         self.check_inbox(bytes("hello\nworld\n", "utf-8"))
 
-    def test_MultiWrite(self):
+    def test_multi_write(self):
         self.inbox = None
 
         self.comm.write(bytes("hello\n", "utf-8"))

@@ -91,7 +91,7 @@ class User(Default):
             self.IRC_REALNAME = conf.get("realname", "Juliet Radio Bot")
             self.IRC_PASSWORD = conf.get("password", None)
 
-            self.IRC_CHANNELS = list()
+            self.IRC_CHANNELS = []
 
             for channel in conf.get("channels", None):
                 if "name" not in channel:
