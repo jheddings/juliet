@@ -51,7 +51,15 @@ run:
 .PHONY: test
 
 test:
-	$(WITH_VENV) pytest "$(BASEDIR)/tests"
+	$(WITH_VENV) coverage run "--source=$(SRCDIR)" -m \
+		pytest --verbose "$(BASEDIR)/tests"
+	$(WITH_VENV) coverage report
+
+################################################################################
+.PHONY: coverage
+
+coverage: test
+	$(WITH_VENV) coverage html
 
 ################################################################################
 .PHONY: preflight
