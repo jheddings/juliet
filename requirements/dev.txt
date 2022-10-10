@@ -1,4 +1,4 @@
 -r core.txt
 
-gitpython==3.1.27
+gitpython==3.1.28
 pre-commit==2.20.0
