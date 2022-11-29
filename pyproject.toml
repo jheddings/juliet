@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "juliet"
+version = "1.0.0"
+description = "A simple IRC relay bot for radio networks."
+authors = ["W0JHX <jheddings@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.7"
+pyserial = "^3.5"
+pyyaml = "^6.0"
+irc = "^20.1.0"
+pytest = "^7.2.0"
+coverage = "^6.5.0"
+
+
+[tool.poetry.group.dev.dependencies]
+gitpython = "^3.1.29"
+pre-commit = "^2.20.0"
+isort = "^5.10.1"
+black = "^22.10.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

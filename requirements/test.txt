@@ -1,4 +1,0 @@
--r core.txt
-
-pytest==7.1.2
-coverage==6.4.4
