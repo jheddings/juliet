@@ -1,4 +1,4 @@
-name: Static Code Quality
+name: Preflight Checks
 
 on:
   push:

@@ -1,10 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "labels": [ "dependencies", "renovate" ],
   "packageRules": [
     {
       "matchLanguages": [ "python" ],
       "addLabels": [ "python" ]
     }
   ],
+  "dependencyDashboard": false,
   "extends": [ "config:base" ]
 }
