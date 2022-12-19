@@ -12,7 +12,7 @@ pyserial = "^3.5"
 pyyaml = "^6.0"
 irc = "^20.1.0"
 pytest = "^7.2.0"
-coverage = "^6.5.0"
+coverage = "^7.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
