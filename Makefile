@@ -12,7 +12,7 @@ WITH_VENV = poetry run
 ################################################################################
 .PHONY: all
 
-all: venv build test
+all: venv preflight build
 
 ################################################################################
 .PHONY: venv
@@ -22,15 +22,15 @@ venv:
 	$(WITH_VENV) pre-commit install --install-hooks --overwrite
 
 ################################################################################
-.PHONY: build-pkg
+.PHONY: build-dist
 
-build-pkg: venv preflight test
+build-dist: preflight
 	poetry --no-interaction build
 
 ################################################################################
 .PHONY: build
 
-build: preflight test build-pkg
+build: build-dist
 
 ################################################################################
 .PHONY: run
@@ -54,13 +54,13 @@ unit-tests: venv
 ################################################################################
 .PHONY: coverage-report
 
-coverage-report: venv test-coverage
+coverage-report: venv unit-tests
 	$(WITH_VENV) coverage report
 
 ################################################################################
 .PHONY: coverage-html
 
-coverage-html: venv test-coverage
+coverage-html: venv unit-tests
 	$(WITH_VENV) coverage html
 
 ################################################################################
@@ -71,7 +71,7 @@ coverage: coverage-report coverage-html
 ################################################################################
 .PHONY: preflight
 
-preflight: venv static-checks unit-tests coverage-report
+preflight: static-checks unit-tests coverage-report
 
 ################################################################################
 .PHONY: clean
