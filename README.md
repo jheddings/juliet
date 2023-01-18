@@ -23,7 +23,7 @@ appropriate folder on your computer.
 
 Before using `juliet`, you will need to install dependencies using `poetry`:
 
-```
+```shell
 poetry install
 ```
 
@@ -33,7 +33,7 @@ poetry install
 
 From the `src` directory, run the `juliet` module with your specified config:
 
-```
+```shell
 poetry run python -m juliet juliet.cfg
 ```
 
