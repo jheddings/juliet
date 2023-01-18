@@ -21,21 +21,20 @@ Written by W0JHX.  Tested using Icom 92AD with the standard programming cable.
 At the moment, there is no installer for `juliet`, simply download the repository to an
 appropriate folder on your computer.
 
-Before using `juliet`, you will need to install the modules from `requirements.txt`:
+Before using `juliet`, you will need to install dependencies using `poetry`:
 
 ```
-python3 -m install -r requirements/core.txt
+poetry install
 ```
 
-*NOTE* Advanced users may wish to do this using `venv` to avoid changes in their
-system libraries.
+*NOTE* This will create a virtual environment to avoid conflicts with your local system.
 
 ## Usage ##
 
 From the `src` directory, run the `juliet` module with your specified config:
 
 ```
-python3 -m juliet juliet.cfg
+poetry run python -m juliet juliet.cfg
 ```
 
 - Find or setup an IRC server (`ngircd` is a good one).
@@ -58,7 +57,8 @@ get started.
 To use Juliet, you will need a running IRC server.  There are many options available,
 including quite a few that are free.  For this project (and in general), I use
 [ngIRCd](https://ngircd.barton.de).  If you find another option that works well,
-feel free to start a discussion in the project page.
+feel free to start a [discussion](https://github.com/jheddings/juliet/discussions) in
+the project page.
 
 ## Technical Info ##
 
