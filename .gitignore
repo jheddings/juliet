@@ -1,4 +1,13 @@
-.venv
+_pycache__
+*.py[cod]
+*.prof
 .coverage
+.pytest_cache
 
-__pycache__
+.venv
+
+dist
+lib
+tmp
+site
+htmlcov
