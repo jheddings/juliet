@@ -1,4 +1,4 @@
-name: Python Test Coverage
+name: Unit Tests
 
 on:
   push:

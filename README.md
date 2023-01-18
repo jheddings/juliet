@@ -1,5 +1,8 @@
 # juliet #
 
+[![LICENSE](https://img.shields.io/github/license/jheddings/juliet)](LICENSE)
+[![Style](https://img.shields.io/badge/style-black-black)](https://github.com/ambv/black)
+
 Juliet is an IRC bot that exchanges channel messages over a radio network.  The intended
 use for this bot is to enable communications by amateur radio operators when standard
 infrastrastructure is not available.  While it was designed with D-STAR in mind, any
