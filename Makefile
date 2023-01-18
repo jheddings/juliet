@@ -39,16 +39,17 @@ run: venv
 	$(WITH_VENV) python3 -m juliet
 
 ################################################################################
-.PHONY: test
+.PHONY: static-checks
 
-test: venv preflight
-	$(WITH_VENV) pytest $(BASEDIR)/tests
+static-checks: venv
+	$(WITH_VENV) pre-commit run --all-files --verbose
 
 ################################################################################
-.PHONY: test-coverage
+.PHONY: unit-tests
 
-test-coverage: venv
-	$(WITH_VENV) coverage run "--source=$(SRCDIR)" -m pytest $(BASEDIR)/tests 
+unit-tests: venv
+	$(WITH_VENV) coverage run "--source=$(SRCDIR)" -m \
+		pytest $(BASEDIR)/tests 
 
 ################################################################################
 .PHONY: coverage-report
@@ -70,8 +71,7 @@ coverage: coverage-report coverage-html
 ################################################################################
 .PHONY: preflight
 
-preflight: venv
-	$(WITH_VENV) pre-commit run --all-files --verbose
+preflight: venv static-checks unit-tests coverage-report
 
 ################################################################################
 .PHONY: clean

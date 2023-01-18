@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      max-parallel: 3
       fail-fast: false
       matrix:
         python-version:
@@ -31,10 +32,5 @@ jobs:
       - name: Install Poetry
         uses: snok/install-poetry@v1
 
-      - name: Install dependencies
-        run: |
-          poetry install
-
       - name: Run unit tests
-        run: |
-          poetry run pytest tests
+        run: make unit-tests
