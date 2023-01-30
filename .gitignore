@@ -1,4 +1,7 @@
-_pycache__
+.DS_Store
+*.log
+
+__pycache__
 *.py[cod]
 *.prof
 .coverage
