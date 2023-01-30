@@ -49,7 +49,7 @@ static-checks: venv
 
 unit-tests: venv
 	$(WITH_VENV) coverage run "--source=$(SRCDIR)" -m \
-		pytest $(BASEDIR)/tests 
+		pytest $(BASEDIR)/tests
 
 ################################################################################
 .PHONY: coverage-report
