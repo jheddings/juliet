@@ -3,6 +3,7 @@
 # Licensed under the MIT License. See LICENSE for full terms.
 ##
 
+
 # modified from https://stackoverflow.com/a/2022629/197772
 class Event(list):
     def __iadd__(self, handler):

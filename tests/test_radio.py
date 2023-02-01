@@ -8,7 +8,6 @@ import juliet.radio
 
 
 class InboxMixin(object):
-
     inbox = None
 
     def recv_msg(self, radio, data):
