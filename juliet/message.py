@@ -172,7 +172,6 @@ class MessageBuffer(object):
 
 
 class Message(object):
-
     version = None
 
     def __init__(self, content, sender=None, signature=None, timestamp=None):
@@ -279,7 +278,6 @@ class CompressedMessage(Message):
 
 
 class TextMessage(Message):
-
     version = 0
 
     def pack_content(self):
@@ -290,7 +288,6 @@ class TextMessage(Message):
 
 
 class CompressedTextMessage(CompressedMessage):
-
     version = 1
 
     def pack_content(self):
@@ -301,7 +298,6 @@ class CompressedTextMessage(CompressedMessage):
 
 
 class ChannelMessage(TextMessage):
-
     version = 3
 
     def __init__(
@@ -323,7 +319,6 @@ class ChannelMessage(TextMessage):
 
 
 class FileMessage(CompressedMessage):
-
     version = 7
     filename = None
     mimetype = None

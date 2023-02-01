@@ -36,7 +36,6 @@ def load_config(config_file):
 
 
 class Default(object):
-
     # the port name for accessing the radio (required)
     RADIO_COMM_PORT = "/dev/tty.usbserial"
 
@@ -62,7 +61,6 @@ class Default(object):
     IRC_CHANNELS = None
 
     def validate(self):
-
         if self.IRC_SERVER_HOST is None:
             raise ValueError("IRC server host must be specified")
 

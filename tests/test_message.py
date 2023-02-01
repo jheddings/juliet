@@ -15,7 +15,6 @@ logging.basicConfig(level=logging.FATAL)
 
 
 class MessageBufferTest(unittest.TestCase):
-
     inbox = None
 
     def setUp(self):
@@ -83,7 +82,6 @@ class MessageBufferTest(unittest.TestCase):
         assert msg2.content == "world"
 
     def test_restart_message(self):
-
         self.msgbuf.append(b">>0::unitt>>0:36FB:unittest:20210")
         assert self.inbox is None
 
