@@ -13,7 +13,6 @@ __version__ = "0.1.1"
 log.debug("attempting to parse git version information")
 
 try:
-
     import git
 
     basedir = os.path.dirname(os.path.abspath(__file__)) + "/.."
