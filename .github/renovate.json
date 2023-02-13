@@ -28,6 +28,7 @@
     }
   ],
 
+  "rangeStrategy": "bump",
   "automergeType": "pr",
   "dependencyDashboard": false,
 
