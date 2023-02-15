@@ -89,4 +89,4 @@ clobber: clean
 	$(WITH_VENV) pre-commit uninstall
 	rm -Rf "$(BASEDIR)/htmlcov"
 	rm -Rf "$(BASEDIR)/dist"
-	rm -Rf "$(BASEDIR)/.venv"
+	poetry env remove --all
