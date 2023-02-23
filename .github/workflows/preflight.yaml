@@ -2,21 +2,15 @@
 name: Preflight Checks
 
 "on":
-
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
 jobs:
-  pre_commit:
+  static_checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-
-      - name: Run static checks
-        run: make static-checks
+      - uses: pre-commit/action@v3.0.0
