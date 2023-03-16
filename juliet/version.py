@@ -1,35 +1,57 @@
-"""Consistent version information for juliet."""
+"""Consistent version information for Juliet."""
 
+import importlib.metadata
 import logging
-import os
+from pathlib import Path
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
-__version__ = "0.1.1"
 
-# if we are running in a local copy, append the repo information
-# XXX do we want to do something more advanced when using `make publish` ?
+def package_version(pkgname):
+    return importlib.metadata.version(pkgname)
 
-log.debug("attempting to parse git version information")
 
-try:
-    import git
+def extended_version(pkgname):
+    version = package_version(pkgname)
 
-    basedir = os.path.dirname(os.path.abspath(__file__)) + "/.."
-    log.debug("version basedir: %s", basedir)
+    # if we are running in a local copy, append the repo information
+    try:
+        import git
 
-    repo = git.Repo(basedir, search_parent_directories=True)
-    head = repo.head.commit
+        # the folder containing Juliet source
+        srcdir = Path(__file__).parent.resolve()
 
-    assert not repo.bare
+        # XXX there is probably a better way to do this, but we don't want to inadvertently
+        # pick up another repo (e.g. if we are installed in a .venv of another project)
+        basedir = srcdir.parent.parent
 
-    # TODO add branch name
-    __version__ = f"{__version__}-{head.hexsha[:7]}"
+        try:
+            repo = git.Repo(basedir, search_parent_directories=True)
+            head = repo.head.commit
 
-    if repo.is_dirty():
-        __version__ = f"{__version__}+"
+            assert not repo.bare
 
-except ModuleNotFoundError:
-    pass
+            version += "-" + head.hexsha[:7]
 
-log.info("juliet-%s", __version__)
+            _branch = repo.active_branch.name
+
+            if _branch != "main":
+                version += "-" + _branch
+
+            if repo.is_dirty():
+                version += "+"
+
+        except git.InvalidGitRepositoryError:
+            pass
+
+    # if python-git is not installed...
+    except ModuleNotFoundError:
+        logger.debug("repository information not available")
+
+    return version
+
+
+__appname__ = "juliet"
+__version__ = extended_version(__appname__)
+
+logger.info("%s-%s", __appname__, __version__)

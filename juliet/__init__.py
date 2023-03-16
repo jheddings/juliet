@@ -8,6 +8,9 @@ import logging
 import irc.bot
 
 from .message import ChannelMessage, MessageBuffer, TextMessage
+from .version import __version__
+
+__all__ = ["Juliet", "__version__"]
 
 
 class Juliet(irc.bot.SingleServerIRCBot):

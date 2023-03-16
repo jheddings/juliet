@@ -8,9 +8,6 @@ import logging
 from juliet import Juliet
 
 from . import config, radio
-from .version import __version__
-
-__all__ = ["__version__"]
 
 ## MAIN ENTRY
 
