@@ -10,4 +10,5 @@ def test_version_exists():
 
 
 def test_version_is_valid_string():
-    assert re.match(r"[0-9]+(\.[0-9])+", __version__)
+    """Ensure version strings meet expected conventions."""
+    assert re.match(r"^[0-9]+(\.[0-9])+(-.*)?$", __version__)
