@@ -9,86 +9,73 @@ APPVER ?= $(shell grep -m1 '^version' "$(BASEDIR)/pyproject.toml" | sed -e 's/ve
 
 WITH_VENV = poetry run
 
-################################################################################
-.PHONY: all
 
+.PHONY: all
 all: venv preflight build
 
-################################################################################
-.PHONY: venv
 
+.PHONY: venv
 venv:
 	poetry install --sync --no-interaction
 	$(WITH_VENV) pre-commit install --install-hooks --overwrite
 
-################################################################################
+
 poetry.lock: venv
 	poetry lock --no-update --no-interaction
 
-################################################################################
-.PHONY: build-dist
 
+.PHONY: build-dist
 build-dist: preflight
 	poetry build --no-interaction
 
-################################################################################
-.PHONY: build
 
+.PHONY: build
 build: build-dist
 
-################################################################################
-.PHONY: run
 
+.PHONY: run
 run: venv
 	$(WITH_VENV) python3 -m juliet
 
-################################################################################
-.PHONY: static-checks
 
+.PHONY: static-checks
 static-checks: venv
 	$(WITH_VENV) pre-commit run --all-files --verbose
 
-################################################################################
-.PHONY: unit-tests
 
+.PHONY: unit-tests
 unit-tests: venv
 	$(WITH_VENV) coverage run "--source=$(SRCDIR)" -m \
 		pytest $(BASEDIR)/tests
 
-################################################################################
-.PHONY: coverage-report
 
+.PHONY: coverage-report
 coverage-report: venv unit-tests
 	$(WITH_VENV) coverage report
 
-################################################################################
-.PHONY: coverage-html
 
+.PHONY: coverage-html
 coverage-html: venv unit-tests
 	$(WITH_VENV) coverage html
 
-################################################################################
-.PHONY: coverage
 
+.PHONY: coverage
 coverage: coverage-report coverage-html
 
-################################################################################
-.PHONY: preflight
 
+.PHONY: preflight
 preflight: static-checks unit-tests coverage-report
 
-################################################################################
-.PHONY: clean
 
+.PHONY: clean
 clean:
 	rm -f "$(BASEDIR)/.coverage"
 	rm -Rf "$(BASEDIR)/.pytest_cache"
 	find "$(BASEDIR)" -name "*.pyc" -print | xargs rm -f
 	find "$(BASEDIR)" -name '__pycache__' -print | xargs rm -Rf
 
-################################################################################
-.PHONY: clobber
 
+.PHONY: clobber
 clobber: clean
 	$(WITH_VENV) pre-commit uninstall
 	rm -Rf "$(BASEDIR)/htmlcov"

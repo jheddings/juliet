@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "juliet"
-version = "1.0.0"
+version = "1.0.1"
 description = "A simple IRC relay bot for radio networks."
 authors = ["W0JHX <jheddings@gmail.com>"]
 license = "MIT"
