@@ -406,14 +406,14 @@ setuptools = "*"
 
 [[package]]
 name = "packaging"
-version = "23.0"
+version = "23.1"
 description = "Core utilities for Python packages"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "packaging-23.0-py3-none-any.whl", hash = "sha256:714ac14496c3e68c99c29b00845f7a2b85f3bb6f1078fd9f72fd20f0570002b2"},
-    {file = "packaging-23.0.tar.gz", hash = "sha256:b6ad297f8907de0fa2fe1ccbd26fdaf387f5f47c7275fedf8cce89f99446cf97"},
+    {file = "packaging-23.1-py3-none-any.whl", hash = "sha256:994793af429502c4ea2ebf6bf664629d07c1a9fe974af92966e4b8d2df7edc61"},
+    {file = "packaging-23.1.tar.gz", hash = "sha256:a392980d2b6cffa644431898be54b0045151319d1e7ec34f0cfed48767dd334f"},
 ]
 
 [[package]]
@@ -651,14 +651,14 @@ files = [
 
 [[package]]
 name = "tempora"
-version = "5.2.1"
+version = "5.2.2"
 description = "Objects and routines pertaining to date and time (tempora)"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "tempora-5.2.1-py3-none-any.whl", hash = "sha256:6a04665b35a2e0c3bef2aa71ce15d3d381b912e4fc3340b0b8a73719c2aeeb75"},
-    {file = "tempora-5.2.1.tar.gz", hash = "sha256:b7176486c5948a75201e8d0b21ef2c23ca808474060df47218c92295bdce5276"},
+    {file = "tempora-5.2.2-py3-none-any.whl", hash = "sha256:003873654acaa49ecca810cee44665d827301134422505386e76f7b080461edb"},
+    {file = "tempora-5.2.2.tar.gz", hash = "sha256:98ee27bc528c91a236f9a5d612ede4ef391b01f7862bf11b483ce549053651c1"},
 ]
 
 [package.dependencies]
