@@ -265,14 +265,14 @@ files = [
 
 [[package]]
 name = "irc"
-version = "20.1.0"
+version = "20.1.1"
 description = "IRC (Internet Relay Chat) protocol library for Python"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "irc-20.1.0-py3-none-any.whl", hash = "sha256:5114aee1247ff634abed80f3349d75ccab35616a4b76be2a25add7ef189db0e5"},
-    {file = "irc-20.1.0.tar.gz", hash = "sha256:b6f737932dd4791f3b18e319de7b7daf02d2285a6bea263d101f4d8e553807ec"},
+    {file = "irc-20.1.1-py3-none-any.whl", hash = "sha256:c35dea1f6db2bc1708539c32861fb5ce009e3d6fb1491923a76b0c7476aa5727"},
+    {file = "irc-20.1.1.tar.gz", hash = "sha256:e2eddcc600831fec63b7fde2e315962914aed01fe7a8c245116d59f38cc6f300"},
 ]
 
 [package.dependencies]
@@ -280,7 +280,7 @@ files = [
 "jaraco.functools" = ">=1.20"
 "jaraco.logging" = "*"
 "jaraco.stream" = "*"
-"jaraco.text" = "*"
+"jaraco.text" = "<3.10"
 more-itertools = "*"
 pytz = "*"
 tempora = ">=1.6"
@@ -380,14 +380,14 @@ testing = ["more-itertools", "pytest (>=4.6)", "pytest-black (>=0.3.7)", "pytest
 
 [[package]]
 name = "jaraco-text"
-version = "3.11.1"
+version = "3.9.1"
 description = "Module for text manipulation"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "jaraco.text-3.11.1-py3-none-any.whl", hash = "sha256:e5e881f377c416f756ad9db9bbaa5a64ff19608c1c8fe350910689f75747d146"},
-    {file = "jaraco.text-3.11.1.tar.gz", hash = "sha256:333a5df2148f7139718607cdf352fe1d95162971a7299c380dcc24dab0168980"},
+    {file = "jaraco.text-3.9.1-py3-none-any.whl", hash = "sha256:3ca615c4135e151d21206075ec4aface8a2fbc3e68437fe709a6541428a635f9"},
+    {file = "jaraco.text-3.9.1.tar.gz", hash = "sha256:d57cd4448a588020318425e04194e897f96fc23b92b82ff9308a24d5cbf2b3fb"},
 ]
 
 [package.dependencies]
@@ -399,7 +399,7 @@ inflect = "*"
 more-itertools = "*"
 
 [package.extras]
-docs = ["furo", "jaraco.packaging (>=9)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-lint"]
+docs = ["jaraco.packaging (>=9)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx"]
 testing = ["flake8 (<5)", "pathlib2", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=1.3)", "pytest-flake8", "pytest-mypy (>=0.9.1)"]
 
 [[package]]
@@ -839,4 +839,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8.1"
-content-hash = "f74ffe4a5596f9e67abc4bd6cc62b167079142521bb1105873f6316c31986ce5"
+content-hash = "2816117c8dea40563017fefad039ffc3231064128234b2c59fb82f23bc921df7"
