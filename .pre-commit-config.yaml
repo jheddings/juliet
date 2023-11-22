@@ -1,27 +1,11 @@
 ---
 repos:
-  - repo: https://github.com/pycqa/isort
-    rev: "5.12.0"
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: "v0.1.6"
     hooks:
-      - id: isort
-        args: [--profile, black]
-
-  - repo: https://github.com/psf/black
-    rev: "23.7.0"
-    hooks:
-      - id: black
-
-  - repo: https://github.com/pycqa/flake8
-    rev: "6.1.0"
-    hooks:
-      - id: flake8
-        additional_dependencies:
-          - flake8-alfred
-          - flake8-breakpoint
-          - flake8-bugbear
-          - flake8-comprehensions
-          - flake8-logging-format
-          - pep8-naming
+      - id: ruff-format
+      - id: ruff
+        args: ["--fix"]
 
   - repo: https://github.com/adrienverge/yamllint.git
     rev: "v1.32.0"
@@ -33,4 +17,5 @@ repos:
     hooks:
       - id: check-case-conflict
       - id: check-merge-conflict
+      - id: check-toml
       - id: trailing-whitespace

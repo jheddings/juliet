@@ -7,7 +7,7 @@ import serial
 import juliet.radio
 
 
-class InboxMixin(object):
+class InboxMixin:
     inbox = None
 
     def recv_msg(self, radio, data):

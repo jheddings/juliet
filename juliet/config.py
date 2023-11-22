@@ -21,7 +21,7 @@ def load_config(config_file):
         print(f"ERROR: config file does not exist: {config_file}")
         return None
 
-    with open(config_file, "r") as fp:
+    with open(config_file) as fp:
         conf = yaml.load(fp, Loader=YamlLoader)
 
         # determine if logging is already configured...
@@ -35,7 +35,7 @@ def load_config(config_file):
     return conf
 
 
-class Default(object):
+class Default:
     # the port name for accessing the radio (required)
     RADIO_COMM_PORT = "/dev/tty.usbserial"
 

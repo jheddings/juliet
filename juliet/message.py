@@ -8,6 +8,7 @@ import logging
 import mimetypes
 import re
 import threading
+import urllib.parse
 import zlib
 from datetime import datetime, timezone
 
@@ -103,14 +104,12 @@ def char_escape(text):
 # XXX as a shortcut use standard decode from urllib...  we use the
 # above table to keep messages short and easier to read in plain text
 
-import urllib.parse
-
 
 def char_unescape(text):
     return urllib.parse.unquote(text)
 
 
-class MessageBuffer(object):
+class MessageBuffer:
     def __init__(self, maxlen=DEFAULT_MAX_BUF_LEN):
         self.buffer = b""
         self.maxlen = maxlen
@@ -171,7 +170,7 @@ class MessageBuffer(object):
         return frame
 
 
-class Message(object):
+class Message:
     version = None
 
     def __init__(self, content, sender=None, signature=None, timestamp=None):
