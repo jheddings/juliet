@@ -21,7 +21,7 @@ RECV_BLOCK_SIZE = 4 * 1024
 #   on_recv => func(radio, data)
 
 
-class RadioBase(object):
+class RadioBase:
     def __init__(self):
         self.on_xmit = Event()
         self.on_recv = Event()
