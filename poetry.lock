@@ -225,13 +225,13 @@ files = [
 
 [[package]]
 name = "irc"
-version = "20.3.1"
+version = "20.4.0"
 description = "IRC (Internet Relay Chat) protocol library for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "irc-20.3.1-py3-none-any.whl", hash = "sha256:a86741936c9d6ab29b976536dc777d362932e8eb2e6f61f05ba351c74b5e324e"},
-    {file = "irc-20.3.1.tar.gz", hash = "sha256:806b83af894d8b121ed1e14866a90640128588de6cc0495c4ecb2c5ec272280b"},
+    {file = "irc-20.4.0-py3-none-any.whl", hash = "sha256:7b70cd3913d9774255df8f4bd56ca07850d3120ec16f3824b152f32670359655"},
+    {file = "irc-20.4.0.tar.gz", hash = "sha256:7d2517f5566d6bf3aa85d7f98c7758b61f0d63ee915bfd9f6f567139736644f9"},
 ]
 
 [package.dependencies]
@@ -245,7 +245,7 @@ pytz = "*"
 tempora = ">=1.6"
 
 [package.extras]
-docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (<7.1)", "sphinx (<7.2.5)", "sphinx (>=3.5)", "sphinx-lint"]
+docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (<7.1)", "sphinx (>=3.5)", "sphinx-lint"]
 testing = ["pygments", "pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-mypy", "pytest-ruff (>=0.2.1)"]
 
 [[package]]
@@ -768,4 +768,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "b90cfbb7ee05f999b3ef53d6a5b5c530001b3435c998302d491f85b577e55bd8"
+content-hash = "e1fa48ebc11f4e51191abba82d78bbf3a77aee32322edbbb9b6aa45e3adb831d"
