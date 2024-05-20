@@ -17,6 +17,14 @@ GitPython = "^3.1.43"
 pre-commit = "^3.7.1"
 pytest = "^8.2.1"
 coverage = "^7.5.1"
+black = "^24.4.2"
+isort = "^5.13.2"
+
+[tool.black]
+line_length = 88
+
+[tool.isort]
+profile = "black"
 
 [tool.ruff]
 line-length = 88
@@ -24,7 +32,6 @@ indent-width = 4
 
 [tool.ruff.lint]
 select = [
-    "I",   # isort
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
     "F",   # pyflakes
@@ -39,15 +46,6 @@ select = [
 ignore = [
     "E501", # line-too-long
 ]
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-skip-magic-trailing-comma = false
-line-ending = "auto"
-
-[tool.ruff.isort]
-known-first-party = ["juliet"]
 
 [build-system]
 requires = ["poetry-core"]
