@@ -292,13 +292,13 @@ files = [
 
 [[package]]
 name = "irc"
-version = "20.4.2"
+version = "20.4.3"
 description = "IRC (Internet Relay Chat) protocol library for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "irc-20.4.2-py3-none-any.whl", hash = "sha256:dcc9070d851c0d614bd6746fa3c7d2525d68e300740746d39be76919b9a15aa7"},
-    {file = "irc-20.4.2.tar.gz", hash = "sha256:c09d7945c3fdcba288d43c4f82fb2b078821ae26ce0b993b62f3894f746c3772"},
+    {file = "irc-20.4.3-py3-none-any.whl", hash = "sha256:a31656f9f76f5baccf4ec1d179309b4e5dc59c0272b2001fcf48997c0d5a1dd0"},
+    {file = "irc-20.4.3.tar.gz", hash = "sha256:75782e381ebbf410443f7914fd74ca17fbdc4414d14d48da561499eb0958d002"},
 ]
 
 [package.dependencies]
@@ -761,4 +761,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "c986c1f9c9b2c0fa7b338255c9925187148a8984658dde936a18a5f67d948393"
+content-hash = "9698614e50f3c12b551a5dccf61b6263eb8c63a8570208ae6cd5c1a319e026f7"
