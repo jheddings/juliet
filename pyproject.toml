@@ -16,7 +16,7 @@ irc = "^20.5.0"
 GitPython = "^3.1.44"
 pre-commit = "^4.1.0"
 pytest = "^8.3.4"
-coverage = "^7.6.10"
+coverage = "^7.6.11"
 black = "^25.1.0"
 isort = "^6.0.0"
 
