@@ -13,7 +13,7 @@ pyyaml = "^6.0.2"
 irc = "^20.5.0"
 
 [tool.poetry.group.dev.dependencies]
-GitPython = "^3.1.44"
+GitPython = "^3.1.45"
 pre-commit = "^4.2.0"
 pytest = "^8.4.1"
 coverage = "^7.9.2"
