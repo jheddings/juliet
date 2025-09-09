@@ -1,5 +1,5 @@
 ---
-name: Preflight Checks
+name: Pre-commit Checks
 
 "on":
   push:
