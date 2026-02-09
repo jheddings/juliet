@@ -486,25 +486,29 @@ type = ["pytest-mypy"]
 
 [[package]]
 name = "jaraco-text"
-version = "4.0.0"
+version = "4.1.0"
 description = "Module for text manipulation"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "jaraco.text-4.0.0-py3-none-any.whl", hash = "sha256:08de508939b5e681b14cdac2f1f73036cd97f6f8d7b25e96b8911a9a428ca0d1"},
-    {file = "jaraco_text-4.0.0.tar.gz", hash = "sha256:5b71fecea69ab6f939d4c906c04fee1eda76500d1641117df6ec45b865f10db0"},
+    {file = "jaraco_text-4.1.0-py3-none-any.whl", hash = "sha256:389bbde1244fec831d06108197e097a8facf49f8104b3c309c3813aff86904f2"},
+    {file = "jaraco_text-4.1.0.tar.gz", hash = "sha256:d69b22dec062a6fcbcffef67205cbd20258c48df2d417b35185fa0fd8dd860ff"},
 ]
 
 [package.dependencies]
 autocommand = "*"
 "jaraco.context" = ">=4.1"
 "jaraco.functools" = "*"
-more-itertools = "*"
+more_itertools = "*"
 
 [package.extras]
+check = ["pytest-checkdocs (>=2.4)", "pytest-ruff (>=0.2.1)"]
+cover = ["pytest-cov"]
 doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-lint"]
+enabler = ["pytest-enabler (>=3.4)"]
 inflect = ["inflect"]
-test = ["pathlib2", "pytest (>=6,!=8.1.*)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-mypy", "pytest-ruff (>=0.2.1)"]
+test = ["pathlib2", "pytest (>=6,!=8.1.*)"]
+type = ["mypy (<1.19)", "pytest-mypy (>=1.0.1)"]
 
 [[package]]
 name = "more-itertools"
