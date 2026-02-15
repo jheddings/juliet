@@ -2,12 +2,11 @@
 
 BASEDIR ?= $(PWD)
 SRCDIR ?= $(BASEDIR)/$(APPNAME)
-VENVDIR ?= $(BASEDIR)/.venv
 
 APPNAME ?= $(shell grep -m1 '^name' "$(BASEDIR)/pyproject.toml" | sed -e 's/name.*"\(.*\)"/\1/')
 APPVER ?= $(shell grep -m1 '^version' "$(BASEDIR)/pyproject.toml" | sed -e 's/version.*"\(.*\)"/\1/')
 
-WITH_VENV = poetry run
+WITH_VENV := uv run
 
 
 .PHONY: all
@@ -16,17 +15,23 @@ all: venv preflight build
 
 .PHONY: venv
 venv:
-	poetry install --sync --no-interaction
+	uv sync --all-extras
 	$(WITH_VENV) pre-commit install --install-hooks --overwrite
 
 
-poetry.lock: venv
-	poetry lock --no-update --no-interaction
+uv.lock: venv
+	uv lock
+
+
+.PHONY: tidy
+tidy: venv uv.lock
+	$(WITH_VENV) ruff format "$(SRCDIR)" "$(BASEDIR)/tests"
+	$(WITH_VENV) ruff check --fix "$(SRCDIR)" "$(BASEDIR)/tests"
 
 
 .PHONY: build-dist
 build-dist: preflight
-	poetry build --no-interaction
+	uv build
 
 
 .PHONY: build
@@ -38,46 +43,41 @@ run: venv
 	$(WITH_VENV) python3 -m juliet
 
 
-.PHONY: static-checks
-static-checks: venv
-	$(WITH_VENV) pre-commit run --all-files --verbose
-
-
 .PHONY: unit-tests
 unit-tests: venv
-	$(WITH_VENV) coverage run "--source=$(SRCDIR)" -m \
-		pytest $(BASEDIR)/tests
+	$(WITH_VENV) pytest "$(BASEDIR)/tests"
 
 
-.PHONY: coverage-report
-coverage-report: venv unit-tests
-	$(WITH_VENV) coverage report
-
-
-.PHONY: coverage-html
-coverage-html: venv unit-tests
-	$(WITH_VENV) coverage html
+.PHONY: test
+test: unit-tests
 
 
 .PHONY: coverage
-coverage: coverage-report coverage-html
+coverage: venv unit-tests
+	$(WITH_VENV) coverage report
+	$(WITH_VENV) coverage html
+
+
+.PHONY: precommit
+precommit: venv
+	$(WITH_VENV) pre-commit run --all-files --verbose
 
 
 .PHONY: preflight
-preflight: static-checks unit-tests coverage-report
+preflight: precommit unit-tests
 
 
 .PHONY: clean
 clean:
 	rm -f "$(BASEDIR)/.coverage"
 	rm -Rf "$(BASEDIR)/.pytest_cache"
+	rm -Rf "$(BASEDIR)/.ruff_cache"
 	find "$(BASEDIR)" -name "*.pyc" -print | xargs rm -f
 	find "$(BASEDIR)" -name '__pycache__' -print | xargs rm -Rf
 
 
 .PHONY: clobber
 clobber: clean
-	$(WITH_VENV) pre-commit uninstall
-	rm -Rf "$(BASEDIR)/htmlcov"
+	$(WITH_VENV) pre-commit uninstall || true
 	rm -Rf "$(BASEDIR)/dist"
-	poetry env remove --all --no-interaction
+	rm -Rf "$(BASEDIR)/.venv"

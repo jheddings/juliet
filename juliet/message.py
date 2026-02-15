@@ -10,7 +10,7 @@ import re
 import threading
 import urllib.parse
 import zlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .event import Event
 
@@ -28,13 +28,13 @@ DEFAULT_MAX_BUF_LEN = 5 * 1024 * 1024
 
 
 def format_timestamp(tstamp):
-    tstamp = tstamp.astimezone(tz=timezone.utc)
+    tstamp = tstamp.astimezone(tz=UTC)
     return tstamp.strftime("%Y%m%d%H%M%S")
 
 
 def parse_timestamp(string):
     tstamp = datetime.strptime(string, "%Y%m%d%H%M%S")
-    return tstamp.replace(tzinfo=timezone.utc)
+    return tstamp.replace(tzinfo=UTC)
 
 
 # modified from https://gist.github.com/oysstu/68072c44c02879a2abf94ef350d1c7c6
@@ -179,9 +179,9 @@ class Message:
         self.signature = signature
 
         if timestamp is None:
-            self.timestamp = datetime.now(tz=timezone.utc)
+            self.timestamp = datetime.now(tz=UTC)
         else:
-            self.timestamp = timestamp.astimezone(timezone.utc)
+            self.timestamp = timestamp.astimezone(UTC)
 
         # juliet messages are only accurate to the second...
         self.timestamp = self.timestamp.replace(microsecond=0)

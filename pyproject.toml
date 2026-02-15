@@ -1,30 +1,32 @@
-[tool.poetry]
+[project]
 name = "juliet"
 version = "1.0.1"
 description = "A simple IRC relay bot for radio networks."
-authors = ["W0JHX <jheddings@gmail.com>"]
-license = "MIT"
+authors = [{ name = "W0JHX", email = "jheddings@gmail.com" }]
+requires-python = ">=3.12, <4"
 readme = "README.md"
+license = "MIT"
+dependencies = [
+    "pyserial>=3.5,<4",
+    "pyyaml>=6.0.3,<7",
+    "irc>=20.5.0,<21",
+]
 
-[tool.poetry.dependencies]
-python = "^3.14.3"
-pyserial = "^3.5"
-pyyaml = "^6.0.3"
-irc = "^20.5.0"
+[dependency-groups]
+dev = [
+    "GitPython>=3.1.46,<4",
+    "pre-commit>=4.5.1,<5",
+    "pytest>=9.0.2,<10",
+    "coverage>=7.13.4,<8",
+    "ruff>=0.15.1,<0.16",
+]
 
-[tool.poetry.group.dev.dependencies]
-GitPython = "^3.1.46"
-pre-commit = "^4.5.1"
-pytest = "^9.0.2"
-coverage = "^7.13.4"
-black = "^26.1.0"
-isort = "^7.0.0"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.black]
-line_length = 88
-
-[tool.isort]
-profile = "black"
+[tool.hatch.build.targets.wheel]
+packages = ["juliet"]
 
 [tool.ruff]
 line-length = 88
@@ -32,6 +34,7 @@ indent-width = 4
 
 [tool.ruff.lint]
 select = [
+    "I",   # isort
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
     "F",   # pyflakes
@@ -47,6 +50,11 @@ ignore = [
     "E501", # line-too-long
 ]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint.isort]
+known-first-party = ["juliet"]

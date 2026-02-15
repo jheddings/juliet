@@ -19,4 +19,4 @@ class Event(list):
             handler(*args, **kwargs)
 
     def __repr__(self):
-        return "Event(%s)" % list.__repr__(self)
+        return f"Event({list.__repr__(self)})"

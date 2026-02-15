@@ -1,29 +1,21 @@
 ---
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
       - id: check-case-conflict
       - id: check-merge-conflict
       - id: check-toml
       - id: trailing-whitespace
 
-  - repo: https://github.com/psf/black
-    rev: "24.4.2"
-    hooks:
-      - id: black
-
-  - repo: https://github.com/pycqa/isort
-    rev: "5.13.2"
-    hooks:
-      - id: isort
-
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.6
+    rev: "v0.12.11"
     hooks:
       - id: ruff-format
+      - id: ruff-check
+        args: ["--fix"]
 
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.32.0
+    rev: "v1.33.0"
     hooks:
       - id: yamllint
