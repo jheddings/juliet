@@ -98,7 +98,7 @@ class Juliet(irc.bot.SingleServerIRCBot):
 
         if cmd == "ping":
             if len(params) > 0:
-                conn.privmsg(sender, f'pong {" ".join(params)}')
+                conn.privmsg(sender, f"pong {' '.join(params)}")
             else:
                 conn.privmsg(sender, "pong")
 
