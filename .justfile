@@ -23,16 +23,18 @@ tidy: setup
   uv run ruff check --fix "{{srcdir}}" "{{basedir}}/tests"
   uv run pyright "{{srcdir}}" "{{basedir}}/tests"
 
+# run all static checks
+check: setup
+  uv run ruff format --check "{{srcdir}}" "{{basedir}}/tests"
+  uv run ruff check "{{srcdir}}" "{{basedir}}/tests"
+  uv run pyright "{{srcdir}}" "{{basedir}}/tests"
+
 # run unit tests
 test: setup
   uv run pytest "{{basedir}}/tests"
 
-# run pre-commit hooks on all files
-precommit: setup
-  uv run pre-commit run --all-files --verbose
-
-# full pre-commit + unit tests (gate for commits)
-preflight: precommit test
+# full static checks and unit tests
+preflight: check test
 
 # run juliet from source
 run: setup
