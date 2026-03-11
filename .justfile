@@ -17,10 +17,11 @@ setup: venv
 venv:
   uv sync --all-extras
 
-# auto-format, lint-fix
+# auto-format, lint-fix, and type-check
 tidy: setup
   uv run ruff format "{{srcdir}}" "{{basedir}}/tests"
   uv run ruff check --fix "{{srcdir}}" "{{basedir}}/tests"
+  uv run pyright "{{srcdir}}" "{{basedir}}/tests"
 
 # run all static checks
 check: setup
