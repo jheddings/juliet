@@ -21,7 +21,7 @@ jobs:
           - "3.14"
 
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
 
       - name: Setup uv w/ python-${{ matrix.python-version }}
         uses: astral-sh/setup-uv@v8.1.0
