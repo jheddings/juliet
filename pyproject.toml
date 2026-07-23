@@ -18,7 +18,7 @@ dev = [
     "pre-commit>=4.6.1,<5",
     "pytest>=9.1.1,<10",
     "coverage>=7.15.2,<8",
-    "ruff>=0.15.22,<0.16",
+    "ruff>=0.16.0,<0.17",
 ]
 
 [build-system]
