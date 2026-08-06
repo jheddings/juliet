@@ -3,7 +3,7 @@ name = "juliet"
 version = "1.0.1"
 description = "A simple IRC relay bot for radio networks."
 authors = [{ name = "W0JHX", email = "jheddings@gmail.com" }]
-requires-python = ">=3.12, <4"
+requires-python = ">=3.14.7, <4"
 readme = "README.md"
 license = "MIT"
 dependencies = [
