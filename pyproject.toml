@@ -8,7 +8,7 @@ readme = "README.md"
 license = "MIT"
 dependencies = [
     "pyserial>=3.5,<4",
-    "pyyaml>=6.0.3,<7",
+    "pyyaml>=6.0.4,<7",
     "irc>=20.5.0,<21",
 ]
 
